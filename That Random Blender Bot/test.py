@@ -31,19 +31,66 @@ GUILD_ID = discord.Object(id = GUILD_SERVER_ID) # server id
 ##################################################################
 
 class Client(commands.Bot):
+    def __init__(self, *args, **kwargs):  # Add this init
+        super().__init__(*args, **kwargs)
+        self.bump = {}  # Store bump-related attributes in a dictionary
+        self.bump["last_ping_time"] = 0  # Initialize here
+        self.bump["last_normal_message_time"] = 0
+
     async def on_ready(self):
         print(f"Logged on as {self.user}!")
 
-#------------------- Force syncing slash commands -------------------
+# ------------------- Force syncing slash commands -------------------
         try:
-            guild = discord.Object(id = GUILD_SERVER_ID)
-            synced = await self.tree.sync(guild = guild)
+            guild = discord.Object(id=GUILD_SERVER_ID)
+            synced = await self.tree.sync(guild=guild)
             print(f"Synced {len(synced)} commands to guild {guild.id}")
-
 
         except Exception as e:
             print(f"Error syncing commands: {e}")
-            
+
+# -------- Bump Reminder Setup ------
+        self.bump["channel_id"] = 1345373029626023999  # channel id (edit this for other servers)
+        self.bump["ping_interval"] = 10 * 60 * 60  # pinging           # time for bump reminders
+        self.bump["normal_message_interval"] = 2.5 * 60 * 60  # message
+
+        channel = self.get_channel(self.bump["channel_id"])
+        if channel is None:
+            print("Bump reminder channel not found.")
+            return
+
+        self.bump["last_ping_time"] = asyncio.get_event_loop().time()
+        self.bump["last_normal_message_time"] = asyncio.get_event_loop().time()
+
+        # Start the bump reminder loop
+        self.loop.create_task(self.bump_reminder_loop(channel))  # Use create_task
+
+    async def bump_reminder_loop(self, channel):  # Separate loop function
+        while True:
+            await self.bump_reminder(channel)
+            await asyncio.sleep(60)  # Refreshing script to see when to execute command.
+
+    async def bump_reminder(self, channel):
+        current_time = asyncio.get_event_loop().time()
+        role = discord.utils.get(channel.guild.roles, name="Bumper")  # find the @bump role
+
+        if current_time - self.bump["last_ping_time"] >= self.bump["ping_interval"]:
+            if role:
+                await channel.send(f"{role.mention}, Time to bump!")  # do @bump
+                print("Bump reminder (with ping) sent.")
+            else:
+                print("Bump role not found for ping.")
+            self.bump["last_ping_time"] = current_time
+
+        elif (
+            current_time - self.bump["last_normal_message_time"]
+            >= self.bump["normal_message_interval"]
+        ):
+            await channel.send("Time to bump!")  # normal message
+            print("Normal bump reminder sent.")
+            self.bump["last_normal_message_time"] = current_time
+
+
 ###########################     MODERATION      ##############################
 
 # ------------ Message deleting logs ----------
