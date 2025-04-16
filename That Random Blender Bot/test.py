@@ -43,7 +43,6 @@ class Client(commands.Bot):
 
         except Exception as e:
             print(f"Error syncing commands: {e}")
-
             
 ###########################     MODERATION      ##############################
 
