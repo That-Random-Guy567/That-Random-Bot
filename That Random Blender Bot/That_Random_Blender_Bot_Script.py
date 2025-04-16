@@ -3,7 +3,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+# time variables
 import asyncio
+from datetime import timedelta
 
 #for safe token keys
 import os
@@ -269,6 +271,43 @@ async def send_command(
     except Exception as e:
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
 
+#------- next bump -------
+# to see when the next bump will occur
+from datetime import timedelta
+
+@client.tree.command(name="nextbump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
+async def next_bump(interaction: discord.Interaction):
+    current_time = asyncio.get_event_loop().time()
+
+    # Ping reminder
+    last_ping_time = client.bump["last_ping_time"]
+    ping_interval = client.bump["ping_interval"]
+    ping_remaining = max(0, ping_interval - (current_time - last_ping_time))
+    ping_time_formatted = str(timedelta(seconds=int(ping_remaining)))
+
+    # Normal message reminder
+    last_normal_time = client.bump["last_normal_message_time"]
+    normal_interval = client.bump["normal_message_interval"]
+    normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
+    normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
+
+    # Build the response
+    next_bump = discord.Embed(
+        title="Next Bump Reminders",
+        color=discord.Color.orange()
+    )
+    next_bump.add_field(
+        name="🔔 Ping Reminder (@Bumper)",
+        value=f"In **{ping_time_formatted}**",
+        inline=False
+    )
+    next_bump.add_field(
+        name="💬 Normal Bump Message",
+        value=f"In **{normal_time_formatted}**",
+        inline=False
+    )
+
+    await interaction.response.send_message(embed=next_bump, ephemeral=False)
 #----------- Subscribe -------
 """
 @client.tree.command(name="subscribe", description="Subscribe to That Random Blender Guy", guild=GUILD_ID)
