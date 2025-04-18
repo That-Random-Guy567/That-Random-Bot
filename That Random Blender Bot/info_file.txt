@@ -1,0 +1,14 @@
+for trbg server
+
+GUILD_SERVER_ID = 1311684718554648637               server
+self.bump["channel_id"] = 1345373029626023999       bump channel id
+delete_log_channel_id = 1361330875161116873         msg delete logs
+edit_log_channel_id = 1361330924263964692           msg edit logs
+
+
+
+for dev server
+GUILD_SERVER_ID = 1357697762090549503               server
+self.bump["channel_id"] = 1361939054328938628       bump channel id
+delete_log_channel_id = 1358712307785404590         msg delete logs
+edit_log_channel_id = 1361609258810085407           msg edit logs

@@ -6,6 +6,7 @@ from discord import app_commands
 #time var
 import asyncio
 from datetime import timedelta
+import time
 
 #for safe token keys
 import os
@@ -52,45 +53,58 @@ class Client(commands.Bot):
             print(f"Error syncing commands: {e}")
 
 # -------- Bump Reminder Setup ------
-        self.bump["channel_id"] = 1345373029626023999  # channel id (edit this for other servers)
-        self.bump["ping_interval"] = 10 * 60 * 60  # pinging           # time for bump reminders
-        self.bump["normal_message_interval"] = 2.5 * 60 * 60  # message
+        self.bump["channel_id"] = 1361939054328938628  # channel id (edit this for other servers)
+        self.bump["ping_interval"] = 10 * 60 * 60  # pinging reminder (10 hours)
+        self.bump["normal_message_interval"] = 2 * 60 * 60  # normal reminder (2 hours)
 
         channel = self.get_channel(self.bump["channel_id"])
         if channel is None:
             print("Bump reminder channel not found.")
             return
 
-        self.bump["last_ping_time"] = asyncio.get_event_loop().time()
-        self.bump["last_normal_message_time"] = asyncio.get_event_loop().time()
+    # Set timers to 0 until /bump is called
+        self.bump["last_ping_time"] = 0
+        self.bump["last_normal_message_time"] = 0
 
-        # Start the bump reminder loop
-        self.loop.create_task(self.bump_reminder_loop(channel))  # Use create_task
+    # Start the reminder loop
+        self.loop.create_task(self.bump_reminder_loop(channel))
 
-    async def bump_reminder_loop(self, channel):  # Separate loop function
-        while True:
-            await self.bump_reminder(channel)
-            await asyncio.sleep(60)  # Refreshing script to see when to execute command.
+#------- bump loop -------
+    async def bump_reminder_loop(self, channel):
+        await self.wait_until_ready()
+        while not self.is_closed():
+            if not self.bump.get("enabled", False):
+                await asyncio.sleep(60)
+                continue  # Skip loop if not enabled
 
-    async def bump_reminder(self, channel):
-        current_time = asyncio.get_event_loop().time()
-        role = discord.utils.get(channel.guild.roles, name="Bumper")  # find the @bump role
+            now = asyncio.get_running_loop().time()
 
-        if current_time - self.bump["last_ping_time"] >= self.bump["ping_interval"]:
-            if role:
-                await channel.send(f"{role.mention}, Time to bump!")  # do @bump
-                print("Bump reminder (with ping) sent.")
-            else:
-                print("Bump role not found for ping.")
-            self.bump["last_ping_time"] = current_time
+            if now - self.bump["last_ping_time"] > self.bump["ping_interval"]:
+                bump_ping = "<@&1361940574193586287>"
+                await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
+                self.bump["last_ping_time"] = now
 
-        elif (
-            current_time - self.bump["last_normal_message_time"]
-            >= self.bump["normal_message_interval"]
+            elif now - self.bump["last_normal_message_time"] > self.bump["normal_message_interval"]:
+                await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
+                self.bump["last_normal_message_time"] = now
+
+            await asyncio.sleep(60)
+
+    async def on_message(self, message):
+        await self.process_commands(message)
+
+        if (
+            message.author.bot and
+            message.embeds and
+            message.embeds[0].description and
+            "Bump done" in message.embeds[0].description
         ):
-            await channel.send("Time to bump!")  # normal message
-            print("Normal bump reminder sent.")
-            self.bump["last_normal_message_time"] = current_time
+            print("✅ Detected Disboard bump. Resetting timers and enabling reminders.")
+
+            now = asyncio.get_running_loop().time()
+            self.bump["last_ping_time"] = now
+            self.bump["last_normal_message_time"] = now
+            self.bump["enabled"] = True  # Start the timers after bump
 
 
 ###########################     MODERATION      ##############################
@@ -255,10 +269,7 @@ async def send_command(
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
 
 #------- next bump -------
-# to see when the next bump will occur
-from datetime import timedelta
-
-@client.tree.command(name="nextbump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
+@client.tree.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
 async def next_bump(interaction: discord.Interaction):
     current_time = asyncio.get_event_loop().time()
 
@@ -292,7 +303,6 @@ async def next_bump(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=next_bump, ephemeral=False)
     
-#----------- Subscribe -------
 """
 @client.tree.command(name="subscribe", description="Subscribe to That Random Blender Guy", guild=GUILD_ID)
 async def subscribe(interaction: discord.Interaction):
@@ -305,7 +315,6 @@ async def subscribe(interaction: discord.Interaction):
     subscribe_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1328989641684291597.webp?size=48&name=ThatRandomBlenderGuyLogo")
     await interaction.response.send_message(embed=subscribe_embed)
 """
-
 
 ################ TOKEN #################
 client.run(TOKEN)
