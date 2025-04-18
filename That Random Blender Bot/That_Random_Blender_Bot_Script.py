@@ -53,7 +53,7 @@ class Client(commands.Bot):
             print(f"Error syncing commands: {e}")
 
 # -------- Bump Reminder Setup ------
-        self.bump["channel_id"] = 1361330924263964692  # channel id (edit this for other servers)
+        self.bump["channel_id"] = 1361939054328938628  # channel id (edit this for other servers)
         self.bump["ping_interval"] = 10 * 60 * 60  # pinging reminder (10 hours)
         self.bump["normal_message_interval"] = 2 * 60 * 60  # normal reminder (2 hours)
 
@@ -69,7 +69,7 @@ class Client(commands.Bot):
     # Start the reminder loop
         self.loop.create_task(self.bump_reminder_loop(channel))
 
-#------- bump loop -------
+#------- bump loop def -------
     async def bump_reminder_loop(self, channel):
         await self.wait_until_ready()
         while not self.is_closed():
@@ -89,7 +89,8 @@ class Client(commands.Bot):
                 self.bump["last_normal_message_time"] = now
 
             await asyncio.sleep(60)
-
+            
+#----- initializng and using bump loop ------
     async def on_message(self, message):
         await self.process_commands(message)
 
@@ -105,6 +106,15 @@ class Client(commands.Bot):
             self.bump["last_ping_time"] = now
             self.bump["last_normal_message_time"] = now
             self.bump["enabled"] = True  # Start the timers after bump
+
+            # Increment the bump count
+            self.bump["bump_count"] += 1
+            print(f"📈 Bump count: {self.bump['bump_count']}")
+
+            if self.bump["bump_count"] >= 12:
+                bump_ping = "<@&1355998357033718001>"
+                await message.channel.send(f"🎯 **Time to bump {bump_ping}!**")
+                self.bump["bump_count"] = 0  # Reset the count
 
 
 ###########################     MODERATION      ##############################
