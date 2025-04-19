@@ -1,12 +1,16 @@
 # importing discord modules
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 
 #time var
 import asyncio
-from datetime import timedelta
 import time
+from datetime import datetime, timezone, timedelta
+
+#for yt video
+import feedparser
+#from discord.ext import tasks
 
 #for safe token keys
 import os
@@ -36,9 +40,18 @@ GUILD_ID = discord.Object(id = GUILD_SERVER_ID) # server id
 class Client(commands.Bot):
     def __init__(self, *args, **kwargs):  # Add this init
         super().__init__(*args, **kwargs)
-        self.bump = {}  # Store bump-related attributes in a dictionary
-        self.bump["last_ping_time"] = 0  # Initialize here
-        self.bump["last_normal_message_time"] = 0
+        #uptime counter
+        self.start_time = datetime.now(timezone.utc)
+        #bump vars
+        self.bump = {
+            "enabled": False,
+            "last_ping_time": 0,
+            "last_normal_message_time": 0,
+            "bump_count": 0,
+            "ping_interval": 6 * 60 * 60,  # 6 hours
+            "normal_message_interval": 2 * 60 * 60,  # 2 hours
+            "channel_id": 1345373029626023999   # Set early so it's available
+        }
 
     async def on_ready(self):
         print(f"Logged on as {self.user}!")
@@ -53,10 +66,6 @@ class Client(commands.Bot):
             print(f"Error syncing commands: {e}")
 
 # -------- Bump Reminder Setup ------
-        self.bump["channel_id"] = 1361939054328938628  # channel id (edit this for other servers)
-        self.bump["ping_interval"] = 10 * 60 * 60  # pinging reminder (10 hours)
-        self.bump["normal_message_interval"] = 2 * 60 * 60  # normal reminder (2 hours)
-
         channel = self.get_channel(self.bump["channel_id"])
         if channel is None:
             print("Bump reminder channel not found.")
@@ -80,7 +89,7 @@ class Client(commands.Bot):
             now = asyncio.get_running_loop().time()
 
             if now - self.bump["last_ping_time"] > self.bump["ping_interval"]:
-                bump_ping = "<@&1361940574193586287>"
+                bump_ping = "<@&1355998357033718001>" 
                 await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
                 self.bump["last_ping_time"] = now
 
@@ -163,7 +172,7 @@ class Client(commands.Bot):
 
 # ------------ Message editing logs ----------
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
-        edit_log_channel_id = 1361609258810085407
+        edit_log_channel_id = 1361330924263964692
         edit_log_channel = client.get_channel(edit_log_channel_id)
 
         if not edit_log_channel:
@@ -216,6 +225,19 @@ class Client(commands.Bot):
 
 ###########################################         Slash Commands          #############################################
 client = Client(command_prefix="!", intents=intents) # defining client, but not too early before the main loop
+
+""" Social Media ads, update when expand to tiktok, insta, etc.
+@client.tree.command(name="subscribe", description="Subscribe to That Random Blender Guy", guild=GUILD_ID)
+async def subscribe(interaction: discord.Interaction):
+    subscribe_embed = discord.Embed(
+        title="Subscribe Here",
+        url="https://www.youtube.com/user/@thatrandomblenderguy?sub_confirmation=1",
+        description="Click the link above to subscribe to That Random Blender Guy on YouTube!",  # Added description
+        color=discord.Color.red(), 
+    )
+    subscribe_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1328989641684291597.webp?size=48&name=ThatRandomBlenderGuyLogo")
+    await interaction.response.send_message(embed=subscribe_embed)
+"""
 
 #-------------- Send command -----------
 @client.tree.command(name="send", description="Sends a message to a specific channel",guild=GUILD_ID)
@@ -281,50 +303,43 @@ async def send_command(
 #------- next bump -------
 @client.tree.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
 async def next_bump(interaction: discord.Interaction):
-    current_time = asyncio.get_event_loop().time()
+    try:
+        current_time = asyncio.get_event_loop().time()
 
-    # Ping reminder
-    last_ping_time = client.bump["last_ping_time"]
-    ping_interval = client.bump["ping_interval"]
-    ping_remaining = max(0, ping_interval - (current_time - last_ping_time))
-    ping_time_formatted = str(timedelta(seconds=int(ping_remaining)))
+        last_ping_time = client.bump.get("last_ping_time", 0)
+        ping_interval = client.bump.get("ping_interval", 10 * 60 * 60)
+        ping_remaining = max(0, ping_interval - (current_time - last_ping_time))
+        ping_time_formatted = str(timedelta(seconds=int(ping_remaining)))
 
-    # Normal message reminder
-    last_normal_time = client.bump["last_normal_message_time"]
-    normal_interval = client.bump["normal_message_interval"]
-    normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
-    normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
+        last_normal_time = client.bump.get("last_normal_message_time", 0)
+        normal_interval = client.bump.get("normal_message_interval", 2 * 60 * 60)
+        normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
+        normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
 
-    # Build the response
-    next_bump = discord.Embed(
-        title="Next Bump Reminders",
-        color=discord.Color.orange()
-    )
-    next_bump.add_field(
-        name="🔔 Ping Reminder (@Bumper)",
-        value=f"In **{ping_time_formatted}**",
-        inline=False
-    )
-    next_bump.add_field(
-        name="💬 Normal Bump Message",
-        value=f"In **{normal_time_formatted}**",
-        inline=False
-    )
+        next_bump = discord.Embed(
+            title="Next Bump Reminders",
+            color=discord.Color.orange()
+        )
+        next_bump.add_field(name="🔔 Ping Reminder (@Bumper)", value=f"In **{ping_time_formatted}**", inline=False)
+        next_bump.add_field(name="💬 Normal Bump Reminder", value=f"In **{normal_time_formatted}**", inline=False)
 
-    await interaction.response.send_message(embed=next_bump, ephemeral=False)
+        await interaction.response.send_message(embed=next_bump)
+    except Exception as e:
+        await interaction.response.send_message(f"Something went wrong while checking bump timers: `{e}`", ephemeral=True)
     
-"""
-@client.tree.command(name="subscribe", description="Subscribe to That Random Blender Guy", guild=GUILD_ID)
-async def subscribe(interaction: discord.Interaction):
-    subscribe_embed = discord.Embed(
-        title="Subscribe Here",
-        url="https://www.youtube.com/user/@thatrandomblenderguy?sub_confirmation=1",
-        description="Click the link above to subscribe to That Random Blender Guy on YouTube!",  # Added description
-        color=discord.Color.red(), 
+#------------ uptime counter ----------
+@client.tree.command(name="uptime", description="Shows how long the bot has been online", guild=GUILD_ID)
+async def uptime(interaction: discord.Interaction):
+    now = datetime.now(timezone.utc)  # ✅ Use timezone-aware UTC
+    delta = now - client.start_time
+    uptime_str = str(timedelta(seconds=int(delta.total_seconds())))
+
+    uptime_embed = discord.Embed(
+        title="🕒 Bot Uptime",
+        description=f"The bot has been running for **{uptime_str}**",
+        color=discord.Color.green()
     )
-    subscribe_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1328989641684291597.webp?size=48&name=ThatRandomBlenderGuyLogo")
-    await interaction.response.send_message(embed=subscribe_embed)
-"""
+    await interaction.response.send_message(embed=uptime_embed)
 
 ################ TOKEN #################
 client.run(TOKEN)

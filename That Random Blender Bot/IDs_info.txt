@@ -5,6 +5,8 @@ self.bump["channel_id"] = 1345373029626023999       bump channel id
 bump_ping = "<@&1355998357033718001>"               bump role ping id
 delete_log_channel_id = 1361330875161116873         msg delete logs
 edit_log_channel_id = 1361330924263964692           msg edit logs
+youtube_upload_channel_id = 1356190880490324128     youtube upload channel id
+youtube_upload_ping_role = "<@&1345378358464221204>"    youtube uploaod ping role
 
 
 
@@ -12,5 +14,9 @@ for dev server
 GUILD_SERVER_ID = 1357697762090549503               server
 self.bump["channel_id"] = 1361939054328938628       bump channel id
 bump_ping = "<@&1361940574193586287>"               bump role ping id
+
 delete_log_channel_id = 1358712307785404590         msg delete logs
 edit_log_channel_id = 1361609258810085407           msg edit logs
+
+youtube_upload_channel_id = 1362814303475859719     youtube upload channel id
+youtube_upload_ping_role = "<@&1362813561667190885>"    youtube uploaod ping role
