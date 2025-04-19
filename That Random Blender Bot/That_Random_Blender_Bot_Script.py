@@ -10,7 +10,9 @@ from datetime import datetime, timezone, timedelta
 
 #for yt video
 import feedparser
-#from discord.ext import tasks
+
+#logging info
+import logging
 
 #for safe token keys
 import os
@@ -24,20 +26,24 @@ TOKEN: Final[str] = os.getenv("DISCORD_TOKEN")
 #------------------- defining some general stuff  -------------------
 
 # intents
-intents = discord.Intents.default()
-intents.message_content = True
-intents.presences = True
-intents.members = True
+intents = discord.Intents.all()
+
+#logging
+logging.basicConfig(level=logging.INFO)
 
 command_prefix = "!"
 
-GUILD_SERVER_ID = 1311684718554648637 # server ID variable 
+GUILD_SERVER_ID = 1311684718554648637   # server ID variable 
 GUILD_ID = discord.Object(id = GUILD_SERVER_ID) # server id
 
 
 ##################################################################
 
 class Client(commands.Bot):
+    """
+    Custom Discord bot client for managing bump reminders, YouTube uploads, 
+    moderation logs, and other server-related tasks.
+    """
     def __init__(self, *args, **kwargs):  # Add this init
         super().__init__(*args, **kwargs)
         #uptime counter
@@ -53,51 +59,61 @@ class Client(commands.Bot):
             "channel_id": 1345373029626023999   # Set early so it's available
         }
 
+#--- login ---
     async def on_ready(self):
-        print(f"Logged on as {self.user}!")
+        logging.info(f"[Logged on as {self.user}!]")
 
 # ------------------- Force syncing slash commands -------------------
         try:
             guild = discord.Object(id=GUILD_SERVER_ID)
             synced = await self.tree.sync(guild=guild)
-            print(f"Synced {len(synced)} commands to guild {guild.id}")
+            logging.info(f"[Synced {len(synced)} commands to guild {guild.id}]")
+
 
         except Exception as e:
-            print(f"Error syncing commands: {e}")
+            logging.info(f"[Error syncing commands: {e}]")
+        print("###########################")
 
-# -------- Bump Reminder Setup ------
+        #start yt loop
+        self.loop.create_task(self.youtube_upload_loop())
+        logging.info("YouTube upload loop started.")
+
+####### Bump stuff #######
+# -------- Bump Reminder Setup ------s
         channel = self.get_channel(self.bump["channel_id"])
         if channel is None:
-            print("Bump reminder channel not found.")
+            logging.info("[Bump reminder channel not found.]")
             return
 
-    # Set timers to 0 until /bump is called
-        self.bump["last_ping_time"] = 0
-        self.bump["last_normal_message_time"] = 0
 
     # Start the reminder loop
         self.loop.create_task(self.bump_reminder_loop(channel))
 
 #------- bump loop def -------
+    # Loop to send bump reminders at regular intervals
     async def bump_reminder_loop(self, channel):
         await self.wait_until_ready()
         while not self.is_closed():
             if not self.bump.get("enabled", False):
-                await asyncio.sleep(60)
-                continue  # Skip loop if not enabled
+                # Skip the loop if bump reminders are disabled
+                await asyncio.sleep(120)
+                continue
 
             now = asyncio.get_running_loop().time()
 
+            # Check if it's time to send a ping reminder
             if now - self.bump["last_ping_time"] > self.bump["ping_interval"]:
-                bump_ping = "<@&1355998357033718001>" 
+                bump_ping = "<@&1355998357033718001>"
                 await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
                 self.bump["last_ping_time"] = now
 
+            # Check if it's time to send a normal reminder
             elif now - self.bump["last_normal_message_time"] > self.bump["normal_message_interval"]:
                 await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
                 self.bump["last_normal_message_time"] = now
 
-            await asyncio.sleep(60)
+            # Wait before checking again
+            await asyncio.sleep(120)
             
 #----- initializng and using bump loop ------
     async def on_message(self, message):
@@ -109,7 +125,7 @@ class Client(commands.Bot):
             message.embeds[0].description and
             "Bump done" in message.embeds[0].description
         ):
-            print("✅ Detected Disboard bump. Resetting timers and enabling reminders.")
+            logging.info("[✅ Detected Disboard bump. Resetting timers and enabling reminders.]")
 
             now = asyncio.get_running_loop().time()
             self.bump["last_ping_time"] = now
@@ -118,12 +134,87 @@ class Client(commands.Bot):
 
             # Increment the bump count
             self.bump["bump_count"] += 1
-            print(f"📈 Bump count: {self.bump['bump_count']}")
+
+            logging.info(f"[📈 Bump count: {self.bump['bump_count']}]")
 
             if self.bump["bump_count"] >= 12:
                 bump_ping = "<@&1355998357033718001>"
                 await message.channel.send(f"🎯 **Time to bump {bump_ping}!**")
                 self.bump["bump_count"] = 0  # Reset the count
+
+############ Youtube Video upload ping auto -------
+    # Helper function for logging with timestamp
+    def log(self, msg, level="LOG"):
+        now = datetime.now().strftime("%H:%M:%S")
+        print(f"[{level}] [{now}] {msg}")
+
+#---- youtube_upload_loop_usage -----
+    async def youtube_upload_loop(self):
+        self.log("YouTube upload loop started.")
+        await self.wait_until_ready()
+        self.log("Bot is ready, starting YouTube feed check.")
+
+        youtube_upload_channel_id = 1356190880490324128
+        youtube_upload_ping_role = "<@&1345378358464221204>"
+
+        check_interval =  3 * 60  # test value; increase later
+        feed_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA"
+
+        posted_video_ids = set()
+        first_run = True  # used to skip alerts on first check
+
+        while not self.is_closed():
+            try:
+                self.log("Checking YouTube feed...")
+
+                # Add a nocache parameter to bypass caching
+                feed_url_with_cache_bypass = f"{feed_url}&nocache={int(time.time())}"
+                self.log(f"Fetching feed from: {feed_url_with_cache_bypass}")
+                
+                # Parse the YouTube feed
+                feed = feedparser.parse(feed_url_with_cache_bypass)
+
+                if feed.entries:
+                    latest_video = feed.entries[0]
+                    self.log(f"Found {len(feed.entries)} video(s) in the feed.")
+                    self.log(f"Latest video entry: {latest_video.title}")
+ 
+                    # Check if the video ID exists in the feed entry
+                    if hasattr(latest_video, 'yt_videoid'):
+                        video_id = latest_video.yt_videoid
+                        self.log(f"Video ID found: {video_id}")
+                    else:
+                        self.log("No video ID found in the latest feed entry.", level="ERROR")
+                        continue
+
+                    self.log(f"Latest video ID: {video_id}")
+
+                    # Skip the first video on startup to avoid duplicate alerts
+                    if first_run:
+                        self.log(f"Skipping first video (startup): {video_id}")
+                        posted_video_ids.add(video_id)
+                        first_run = False
+                    elif video_id not in posted_video_ids:
+                        # Send a notification for new videos
+                        channel = self.get_channel(youtube_upload_channel_id)
+                        video_url = f"https://youtu.be/{video_id}"
+                        if channel:
+                            await channel.send(f"{youtube_upload_ping_role} New video just dropped! 🎬\n{video_url}")
+                            self.log(f"New video uploaded: {video_url}")
+                        else:
+                            self.log(f"Could not find channel ID {youtube_upload_channel_id}", level="ERROR")
+                        posted_video_ids.add(video_id)
+                    else:
+                        self.log(f"Video already posted: {video_id}")
+                else:
+                    self.log("No entries found in the feed.")
+
+            except Exception as e:
+                self.log(f"Error checking YouTube feed: {e}", level="ERROR")
+
+            # Wait before checking the feed again
+            print("--------------------------")
+            await asyncio.sleep(check_interval)
 
 
 ###########################     MODERATION      ##############################
@@ -131,10 +222,10 @@ class Client(commands.Bot):
 # ------------ Message deleting logs ----------
     async def on_message_delete(self, message, *args):
         delete_log_channel_id = 1361330875161116873
-        delete_log_channel = client.get_channel(delete_log_channel_id)
+        delete_log_channel = self.get_channel(delete_log_channel_id)
 
         if not delete_log_channel:
-            print(f"Error: Could not find log channel with ID {delete_log_channel_id}")
+            logging.info(f"Error: Could not find log channel with ID {delete_log_channel_id}")
             return
         
         if message.author == self.user:
@@ -163,9 +254,9 @@ class Client(commands.Bot):
         if message.author:
             Deleted_Message.set_author(
                 name=message.author.name,
-                icon_url=message.author.avatar.url
+                icon_url = message.author.avatar.url if message.author.avatar else None
             )
-
+            
         Deleted_Message.timestamp = message.created_at
 
         await delete_log_channel.send(embed=Deleted_Message)
@@ -173,10 +264,10 @@ class Client(commands.Bot):
 # ------------ Message editing logs ----------
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
         edit_log_channel_id = 1361330924263964692
-        edit_log_channel = client.get_channel(edit_log_channel_id)
+        edit_log_channel = self.get_channel(edit_log_channel_id)
 
         if not edit_log_channel:
-            print(f"Error: Could not find log channel with ID {edit_log_channel_id}")
+            logging.info(f"Error: Could not find log channel with ID {edit_log_channel_id}")
             return
         
         # Check if the message author is the bot itself
@@ -216,9 +307,8 @@ class Client(commands.Bot):
         if before.author:
             Edited_Message.set_author(
                 name=author_name, # Use author_name
-                icon_url=before.author.avatar.url
+                icon_url=before.author.avatar.url if before.author.avatar else None # Use avatar URL if available
             )
-
         Edited_Message.timestamp = after.edited_at or after.created_at # Use edited_at if available, otherwise use created_at
 
         await edit_log_channel.send(embed=Edited_Message)
@@ -226,7 +316,7 @@ class Client(commands.Bot):
 ###########################################         Slash Commands          #############################################
 client = Client(command_prefix="!", intents=intents) # defining client, but not too early before the main loop
 
-""" Social Media ads, update when expand to tiktok, insta, etc.
+""" Subscribe
 @client.tree.command(name="subscribe", description="Subscribe to That Random Blender Guy", guild=GUILD_ID)
 async def subscribe(interaction: discord.Interaction):
     subscribe_embed = discord.Embed(
@@ -293,29 +383,40 @@ async def send_command(
         await interaction.response.send_message(embed=message_sent_embed, ephemeral=False)  # send embed to user
 
     except discord.Forbidden:
-        await interaction.response.send_message(f"Oops! I don't have permission to send messages in {channel.mention}.", ephemeral=True,)
+        # Handle cases where the bot doesn't have permission to send messages in the channel
+        await interaction.response.send_message(f"Oops! I don't have permission to send messages in {channel.mention}.", ephemeral=True)
+        logging.info(f"[Permission error: I don't have permission to send messages in {channel.mention}.]")
 
     except discord.NotFound:
-        await interaction.response.send_message(f"Hmm, I couldn't find the channel {channel.mention}.", ephemeral=True,)
+        # Handle cases where the specified channel doesn't exist
+        await interaction.response.send_message(f"Hmm, I couldn't find the channel {channel.mention}.", ephemeral=True)
+        logging.info(f"[Channel not found: {channel.mention}]")
+
     except Exception as e:
+        # Handle any other unexpected errors
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
+        logging.info(f"[Error: {e}]")
 
 #------- next bump -------
+# Slash command to check when the next bump reminders will be sent
 @client.tree.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
-async def next_bump(interaction: discord.Interaction):
+async def next_bump(interaction: discord.Interaction) -> None:
     try:
-        current_time = asyncio.get_event_loop().time()
+        current_time = time.monotonic()  # Use time.monotonic() for elapsed time
 
-        last_ping_time = client.bump.get("last_ping_time", 0)
-        ping_interval = client.bump.get("ping_interval", 10 * 60 * 60)
+        # Calculate remaining time for the next ping reminder
+        last_ping_time = interaction.client.bump["last_ping_time"]
+        ping_interval = interaction.client.bump["ping_interval"]
         ping_remaining = max(0, ping_interval - (current_time - last_ping_time))
         ping_time_formatted = str(timedelta(seconds=int(ping_remaining)))
 
-        last_normal_time = client.bump.get("last_normal_message_time", 0)
-        normal_interval = client.bump.get("normal_message_interval", 2 * 60 * 60)
+        # Calculate remaining time for the next normal reminder
+        last_normal_time = interaction.client.bump["last_normal_message_time"]
+        normal_interval = interaction.client.bump["normal_message_interval"]
         normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
         normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
 
+        # Create and send an embed with the reminder times
         next_bump = discord.Embed(
             title="Next Bump Reminders",
             color=discord.Color.orange()
@@ -331,7 +432,7 @@ async def next_bump(interaction: discord.Interaction):
 @client.tree.command(name="uptime", description="Shows how long the bot has been online", guild=GUILD_ID)
 async def uptime(interaction: discord.Interaction):
     now = datetime.now(timezone.utc)  # ✅ Use timezone-aware UTC
-    delta = now - client.start_time
+    delta = now - interaction.client.start_time
     uptime_str = str(timedelta(seconds=int(delta.total_seconds())))
 
     uptime_embed = discord.Embed(
@@ -341,5 +442,14 @@ async def uptime(interaction: discord.Interaction):
     )
     await interaction.response.send_message(embed=uptime_embed)
 
+
+
 ################ TOKEN #################
-client.run(TOKEN)
+# Run the bot with the token from the .env file
+# Handle invalid tokens or other errors gracefully
+try:
+    client.run(TOKEN)
+except discord.LoginFailure:
+    logging.info("[Invalid token. Please check your .env file.]")
+except Exception as e:
+    logging.info(f"[An error occurred: {e}]")

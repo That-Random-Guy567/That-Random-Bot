@@ -1,5 +1,4 @@
 for trbg server
-
 GUILD_SERVER_ID = 1311684718554648637               server
 self.bump["channel_id"] = 1345373029626023999       bump channel id
 bump_ping = "<@&1355998357033718001>"               bump role ping id
