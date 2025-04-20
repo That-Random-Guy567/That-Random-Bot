@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO)
 
 command_prefix = "!"
 
-GUILD_SERVER_ID = 1311684718554648637   # server ID variable 
+GUILD_SERVER_ID = 1311684718554648637 # server ID variable 
 GUILD_ID = discord.Object(id = GUILD_SERVER_ID) # server id
 
 
@@ -58,6 +58,12 @@ class Client(commands.Bot):
             "normal_message_interval": 2 * 60 * 60,  # 2 hours
             "channel_id": 1345373029626023999   # Set early so it's available
         }
+        #yt stuff
+        self.youtube_upload_channel_id = 1356190880490324128
+        self.youtube_upload_ping_role = "<@&1345378358464221204>"
+        self.feed_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA"
+        self.posted_video_ids = set()
+        self.first_run = True  # Skip alerts on the first check
 
 #--- login ---
     async def on_ready(self):
@@ -74,9 +80,11 @@ class Client(commands.Bot):
             logging.info(f"[Error syncing commands: {e}]")
         print("###########################")
 
-        #start yt loop
-        self.loop.create_task(self.youtube_upload_loop())
-        logging.info("YouTube upload loop started.")
+######## start yt loop #######
+        # Start the YouTube upload loop
+        if not self.youtube_upload_loop.is_running():
+            self.youtube_upload_loop.start()
+            logging.info("YouTube upload loop started.")
 
 ####### Bump stuff #######
 # -------- Bump Reminder Setup ------s
@@ -84,7 +92,6 @@ class Client(commands.Bot):
         if channel is None:
             logging.info("[Bump reminder channel not found.]")
             return
-
 
     # Start the reminder loop
         self.loop.create_task(self.bump_reminder_loop(channel))
@@ -96,7 +103,7 @@ class Client(commands.Bot):
         while not self.is_closed():
             if not self.bump.get("enabled", False):
                 # Skip the loop if bump reminders are disabled
-                await asyncio.sleep(120)
+                await asyncio.sleep(60)
                 continue
 
             now = asyncio.get_running_loop().time()
@@ -113,7 +120,7 @@ class Client(commands.Bot):
                 self.bump["last_normal_message_time"] = now
 
             # Wait before checking again
-            await asyncio.sleep(120)
+            await asyncio.sleep(60)
             
 #----- initializng and using bump loop ------
     async def on_message(self, message):
@@ -149,79 +156,65 @@ class Client(commands.Bot):
         print(f"[{level}] [{now}] {msg}")
 
 #---- youtube_upload_loop_usage -----
+    @tasks.loop(minutes=10)  # Check every 10 minutes
     async def youtube_upload_loop(self):
-        self.log("YouTube upload loop started.")
-        await self.wait_until_ready()
-        self.log("Bot is ready, starting YouTube feed check.")
+        self.log("Checking YouTube feed...")
 
-        youtube_upload_channel_id = 1356190880490324128
-        youtube_upload_ping_role = "<@&1345378358464221204>"
+        try:
+            # Add a nocache parameter to bypass caching
+            feed_url_with_cache_bypass = f"{self.feed_url}&nocache={int(time.time())}"
 
-        check_interval =  3 * 60  # test value; increase later
-        feed_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA"
+            # Parse the YouTube feed
+            feed = feedparser.parse(feed_url_with_cache_bypass)
 
-        posted_video_ids = set()
-        first_run = True  # used to skip alerts on first check
+            if feed.entries:
+                latest_video = feed.entries[0]
+                self.log(f"Latest video entry: {latest_video.title}")
 
-        while not self.is_closed():
-            try:
-                self.log("Checking YouTube feed...")
-
-                # Add a nocache parameter to bypass caching
-                feed_url_with_cache_bypass = f"{feed_url}&nocache={int(time.time())}"
-                self.log(f"Fetching feed from: {feed_url_with_cache_bypass}")
-                
-                # Parse the YouTube feed
-                feed = feedparser.parse(feed_url_with_cache_bypass)
-
-                if feed.entries:
-                    latest_video = feed.entries[0]
-                    self.log(f"Found {len(feed.entries)} video(s) in the feed.")
-                    self.log(f"Latest video entry: {latest_video.title}")
- 
-                    # Check if the video ID exists in the feed entry
-                    if hasattr(latest_video, 'yt_videoid'):
-                        video_id = latest_video.yt_videoid
-                        self.log(f"Video ID found: {video_id}")
-                    else:
-                        self.log("No video ID found in the latest feed entry.", level="ERROR")
-                        continue
-
-                    self.log(f"Latest video ID: {video_id}")
-
-                    # Skip the first video on startup to avoid duplicate alerts
-                    if first_run:
-                        self.log(f"Skipping first video (startup): {video_id}")
-                        posted_video_ids.add(video_id)
-                        first_run = False
-                    elif video_id not in posted_video_ids:
-                        # Send a notification for new videos
-                        channel = self.get_channel(youtube_upload_channel_id)
-                        video_url = f"https://youtu.be/{video_id}"
-                        if channel:
-                            await channel.send(f"{youtube_upload_ping_role} New video just dropped! 🎬\n{video_url}")
-                            self.log(f"New video uploaded: {video_url}")
-                        else:
-                            self.log(f"Could not find channel ID {youtube_upload_channel_id}", level="ERROR")
-                        posted_video_ids.add(video_id)
-                    else:
-                        self.log(f"Video already posted: {video_id}")
+                # Check if the video ID exists in the feed entry
+                if hasattr(latest_video, 'yt_videoid'):
+                    video_id = latest_video.yt_videoid
+                    self.log(f"Video ID found: {video_id}")
                 else:
-                    self.log("No entries found in the feed.")
+                    self.log("No video ID found in the latest feed entry.", level="ERROR")
+                    return
 
-            except Exception as e:
-                self.log(f"Error checking YouTube feed: {e}", level="ERROR")
+                # Skip the first video on startup to avoid duplicate alerts
+                if self.first_run:
+                    self.log(f"Skipping first video (startup): {video_id}")
+                    self.posted_video_ids.add(video_id)
+                    self.first_run = False
+                elif video_id not in self.posted_video_ids:
+                    # Send a notification for new videos
+                    channel = self.get_channel(self.youtube_upload_channel_id)
+                    video_url = f"https://youtu.be/{video_id}"
+                    if channel:
+                        await channel.send(f"{self.youtube_upload_ping_role} New video just dropped! 🎬\n{video_url}")
+                        self.log(f"New video uploaded: {video_url}")
+                    else:
+                        self.log(f"Could not find channel ID {self.youtube_upload_channel_id}", level="ERROR")
+                    self.posted_video_ids.add(video_id)
+                else:
+                    self.log(f"Video already posted: {video_id}")
+            else:
+                self.log("No entries found in the feed.")
 
-            # Wait before checking the feed again
-            print("--------------------------")
-            await asyncio.sleep(check_interval)
+        except Exception as e:
+            self.log(f"Error checking YouTube feed: {e}", level="ERROR")
+            await asyncio.sleep(60)
+
+    @youtube_upload_loop.before_loop
+    async def before_youtube_upload_loop(self):
+        await self.wait_until_ready()
+        self.log("Bot is ready. Starting YouTube upload loop.")
+
 
 
 ###########################     MODERATION      ##############################
 
 # ------------ Message deleting logs ----------
     async def on_message_delete(self, message, *args):
-        delete_log_channel_id = 1361330875161116873
+        delete_log_channel_id = 1361330875161116873 
         delete_log_channel = self.get_channel(delete_log_channel_id)
 
         if not delete_log_channel:
@@ -263,7 +256,7 @@ class Client(commands.Bot):
 
 # ------------ Message editing logs ----------
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
-        edit_log_channel_id = 1361330924263964692
+        edit_log_channel_id = 1361330924263964692 
         edit_log_channel = self.get_channel(edit_log_channel_id)
 
         if not edit_log_channel:
@@ -330,13 +323,13 @@ async def subscribe(interaction: discord.Interaction):
 """
 
 #-------------- Send command -----------
-@client.tree.command(name="send", description="Sends a message to a specific channel",guild=GUILD_ID)
+@client.tree.command(name="send", description="Sends a message to a specific channel", guild=GUILD_ID)
 @app_commands.describe(
     channel='The channel you want to send the message to.',
     message="The main message you want to send",
     title='The title of the embed',
     description='The description of the embed',
-    color='The color of the embed (e.g., "0x3498db" for blue)',
+    color='The color of the embed (e.g., "blurple", "red", "green", or a hex code like #FF5733)',
 )
 async def send_command(
     interaction: discord.Interaction,
@@ -344,43 +337,66 @@ async def send_command(
     message: str = None,
     title: str = None,  # Make title optional
     description: str = None,  # Make description optional
-    color: str = "0x000000",  # Make color optional, default to black
+    color: str = "blurple",  # Default to Discord blurple
 ):
+    # Predefined color mapping
+    predefined_colors = {
+        "blurple": discord.Color.blurple(),
+        "red": discord.Color.red(),
+        "green": discord.Color.green(),
+        "blue": discord.Color.blue(),
+        "yellow": discord.Color.yellow(),
+        "orange": discord.Color.orange(),
+        "purple": discord.Color.purple(),
+        "white": discord.Color.from_rgb(255, 255, 255),  # Custom white color
+        "black": discord.Color.from_rgb(0, 0, 0),  # Custom black color
+    }
+
     try:
-        # If there's a title or description, create an embed
-        if title or description:
-            # Convert the color string to an integer
+        # Determine the embed color
+        if color.lower() in predefined_colors:
+            embed_color = predefined_colors[color.lower()]
+        elif color.startswith("#") and len(color) == 7:  # Check if it's a hex code
             try:
-                color_int = int(color, 16)  # Base 16 for hex
+                # Convert hex to RGB and create a discord.Color
+                hex_color = int(color[1:], 16)  # Convert hex string to integer
+                embed_color = discord.Color(hex_color)
             except ValueError:
                 await interaction.response.send_message(
-                    "Invalid color format. Please use a hexadecimal color code (e.g., '0x3498db').",
+                    "Invalid hex color code. Please use a valid hex code (e.g., `#FF5733`).",
                     ephemeral=True,
                 )
-                return  # Stop if the color is invalid
+                return
+        else:
+            await interaction.response.send_message(
+                f"Invalid color. Please choose from: {', '.join(predefined_colors.keys())} or provide a valid hex code (e.g., `#FF5733`).",
+                ephemeral=True,
+            )
+            return
 
-            # Construct the embed
+        # If there's a title or description, create an embed
+        if title or description:
             embed = discord.Embed(
                 title=title if title else "",  # Use title if provided, otherwise ""
                 description=description if description else "",  # Use description if provided, otherwise ""
-                color=color_int,
+                color=embed_color,
             )
             sent_message = await channel.send(embed=embed)  # Send the embed
         elif message:
-            sent_message = await channel.send(message) # Send just the message
+            sent_message = await channel.send(message)  # Send just the message
         else:
             await interaction.response.send_message("Please provide a message or something for the embed!", ephemeral=True)
             return
 
         channel_link = channel.mention
         if interaction.guild:
-            message_link = (f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{sent_message.id}")
+            message_link = f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{sent_message.id}"
         else:
             message_link = ""
         message_sent_embed = discord.Embed(color=discord.Color.green())
-        message_sent_embed.description = f"✅ Message has been sent to {channel_link} You can view it [here]({message_link})."
+        message_sent_embed.description = f"✅ Message has been sent to {channel_link}. You can view it [here]({message_link})."
 
-        await interaction.response.send_message(embed=message_sent_embed, ephemeral=False)  # send embed to user
+        await interaction.response.send_message(embed=message_sent_embed, ephemeral=False)  # Send confirmation to user
 
     except discord.Forbidden:
         # Handle cases where the bot doesn't have permission to send messages in the channel
@@ -396,37 +412,6 @@ async def send_command(
         # Handle any other unexpected errors
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
         logging.info(f"[Error: {e}]")
-
-#------- next bump -------
-# Slash command to check when the next bump reminders will be sent
-@client.tree.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
-async def next_bump(interaction: discord.Interaction) -> None:
-    try:
-        current_time = time.monotonic()  # Use time.monotonic() for elapsed time
-
-        # Calculate remaining time for the next ping reminder
-        last_ping_time = interaction.client.bump["last_ping_time"]
-        ping_interval = interaction.client.bump["ping_interval"]
-        ping_remaining = max(0, ping_interval - (current_time - last_ping_time))
-        ping_time_formatted = str(timedelta(seconds=int(ping_remaining)))
-
-        # Calculate remaining time for the next normal reminder
-        last_normal_time = interaction.client.bump["last_normal_message_time"]
-        normal_interval = interaction.client.bump["normal_message_interval"]
-        normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
-        normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
-
-        # Create and send an embed with the reminder times
-        next_bump = discord.Embed(
-            title="Next Bump Reminders",
-            color=discord.Color.orange()
-        )
-        next_bump.add_field(name="🔔 Ping Reminder (@Bumper)", value=f"In **{ping_time_formatted}**", inline=False)
-        next_bump.add_field(name="💬 Normal Bump Reminder", value=f"In **{normal_time_formatted}**", inline=False)
-
-        await interaction.response.send_message(embed=next_bump)
-    except Exception as e:
-        await interaction.response.send_message(f"Something went wrong while checking bump timers: `{e}`", ephemeral=True)
     
 #------------ uptime counter ----------
 @client.tree.command(name="uptime", description="Shows how long the bot has been online", guild=GUILD_ID)
@@ -442,7 +427,16 @@ async def uptime(interaction: discord.Interaction):
     )
     await interaction.response.send_message(embed=uptime_embed)
 
-
+#-------- latency check --------
+@client.tree.command(name="ping", description="Check the bot's latency", guild=GUILD_ID)
+async def ping(interaction: discord.Interaction):
+    latency_ms = round(client.latency * 1000)  # Convert latency to milliseconds
+    latency_embed = discord.Embed(
+        title="🏓 Pong!",
+        description=f"The bot's latency is **{latency_ms}ms**.",
+        color=discord.Color.blue()
+    )
+    await interaction.response.send_message(embed=latency_embed)
 
 ################ TOKEN #################
 # Run the bot with the token from the .env file
