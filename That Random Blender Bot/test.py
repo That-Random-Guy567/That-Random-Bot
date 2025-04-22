@@ -60,6 +60,7 @@ class Client(commands.Bot):
         }
         #yt stuff
         self.youtube_upload_channel_id = 1362814303475859719
+        self.youtube_forum_channel_id = 1364102106939654174
         self.youtube_upload_ping_role = "<@&1362813561667190885>"
         self.feed_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA"
         self.posted_video_ids = set()
@@ -132,6 +133,7 @@ class Client(commands.Bot):
             message.embeds[0].description and
             "Bump done" in message.embeds[0].description
         ):
+            print("----------------------")
             logging.info("[✅ Detected Disboard bump. Resetting timers and enabling reminders.]")
 
             now = asyncio.get_running_loop().time()
@@ -143,6 +145,7 @@ class Client(commands.Bot):
             self.bump["bump_count"] += 1
 
             logging.info(f"[📈 Bump count: {self.bump['bump_count']}]")
+            print("----------------------")
 
             if self.bump["bump_count"] >= 12:
                 bump_ping = "<@&1361940574193586287>"
@@ -158,6 +161,7 @@ class Client(commands.Bot):
 #---- youtube_upload_loop_usage -----
     @tasks.loop(minutes=10)  # Check every 10 minutes
     async def youtube_upload_loop(self):
+        print("----------------------")
         self.log("Checking YouTube feed...")
 
         try:
@@ -187,12 +191,39 @@ class Client(commands.Bot):
                 elif video_id not in self.posted_video_ids:
                     # Send a notification for new videos
                     channel = self.get_channel(self.youtube_upload_channel_id)
+                    forum_channel = self.get_channel(self.youtube_forum_channel_id)  # Forum channel ID
                     video_url = f"https://youtu.be/{video_id}"
+
                     if channel:
+                        # Send the announcement in the main channel
                         await channel.send(f"{self.youtube_upload_ping_role} New video just dropped! 🎬\n{video_url}")
                         self.log(f"New video uploaded: {video_url}")
+
+                    # Create a forum post for the video
+                    if forum_channel and isinstance(forum_channel, discord.ForumChannel):
+                        # Find the "Youtube Video" tag or use the last tag in the list
+                        tag_to_apply = None
+                        if forum_channel.available_tags:
+                            for tag in forum_channel.available_tags:
+                                if tag.name.lower() == "youtube video":
+                                    tag_to_apply = tag
+                                    break
+                            if not tag_to_apply:
+                                tag_to_apply = forum_channel.available_tags[-1]  # Use the last tag if "Youtube Video" is not found
+                        else:
+                            self.log(f"No tags available in forum channel ID {self.youtube_forum_channel_id}.", level="ERROR")
+                            return
+                        if tag_to_apply:
+                            forum_post = await forum_channel.create_thread(
+                                name=latest_video.title,  # Use the video title as the post title
+                                content=f"🎥 **{latest_video.title}**\n{video_url}",  # Use the video link as the post content
+                                applied_tags=[tag_to_apply.id]  # Apply the selected tag
+                            )
+                            self.log(f"Forum post created for video: {latest_video.title} with tag: {tag_to_apply.name}")
+                        else:
+                            self.log(f"No tags available in forum channel ID {self.youtube_forum_channel_id}.", level="ERROR")
                     else:
-                        self.log(f"Could not find channel ID {self.youtube_upload_channel_id}", level="ERROR")
+                        self.log(f"Could not find forum channel ID {self.youtube_forum_channel_id} or it is not a ForumChannel.", level="ERROR")
                     self.posted_video_ids.add(video_id)
                 else:
                     self.log(f"Video already posted: {video_id}")
@@ -207,7 +238,6 @@ class Client(commands.Bot):
     async def before_youtube_upload_loop(self):
         await self.wait_until_ready()
         self.log("Bot is ready. Starting YouTube upload loop.")
-
 
 
 ###########################     MODERATION      ##############################
@@ -412,7 +442,38 @@ async def send_command(
         # Handle any other unexpected errors
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
         logging.info(f"[Error: {e}]")
-    
+
+#------- next bump -------
+# Slash command to check when the next bump reminders will be sent
+@client.tree.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
+async def next_bump(interaction: discord.Interaction) -> None:
+    try:
+        current_time = time.monotonic()  # Use time.monotonic() for elapsed time
+
+        # Calculate remaining time for the next ping reminder
+        last_ping_time = interaction.client.bump["last_ping_time"]
+        ping_interval = interaction.client.bump["ping_interval"]
+        ping_remaining = max(0, ping_interval - (current_time - last_ping_time))
+        ping_time_formatted = str(timedelta(seconds=int(ping_remaining)))
+
+        # Calculate remaining time for the next normal reminder
+        last_normal_time = interaction.client.bump["last_normal_message_time"]
+        normal_interval = interaction.client.bump["normal_message_interval"]
+        normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
+        normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
+
+        # Create and send an embed with the reminder times
+        next_bump = discord.Embed(
+            title="Next Bump Reminders",
+            color=discord.Color.orange()
+        )
+        next_bump.add_field(name="🔔 Ping Reminder (@Bumper)", value=f"In **{ping_time_formatted}**", inline=False)
+        next_bump.add_field(name="💬 Normal Bump Reminder", value=f"In **{normal_time_formatted}**", inline=False)
+
+        await interaction.response.send_message(embed=next_bump)
+    except Exception as e:
+        await interaction.response.send_message(f"Something went wrong while checking bump timers: `{e}`", ephemeral=True)
+       
 #------------ uptime counter ----------
 @client.tree.command(name="uptime", description="Shows how long the bot has been online", guild=GUILD_ID)
 async def uptime(interaction: discord.Interaction):
@@ -430,14 +491,33 @@ async def uptime(interaction: discord.Interaction):
 #-------- latency check --------
 @client.tree.command(name="ping", description="Check the bot's latency", guild=GUILD_ID)
 async def ping(interaction: discord.Interaction):
-    latency_ms = round(client.latency * 1000)  # Convert latency to milliseconds
+    # Measure the start time
+    start_time = time.perf_counter()
+
+    # Send an initial response
+    await interaction.response.send_message("🏓 Pong!")
+
+    # Measure the end time after the response is sent
+    end_time = time.perf_counter()
+
+    # Calculate round-trip latency
+    round_trip_latency = round((end_time - start_time) * 1000)  # Convert to milliseconds
+
+    # WebSocket latency
+    websocket_latency = round(client.latency * 1000, 2)  # Convert to milliseconds with 2 decimal places
+
+    # Create the embed
     latency_embed = discord.Embed(
         title="🏓 Pong!",
-        description=f"The bot's latency is **{latency_ms}ms**.",
         color=discord.Color.blue()
     )
-    await interaction.response.send_message(embed=latency_embed)
+    latency_embed.add_field(name="Discord Bot Latency", value=f"**{round_trip_latency}ms**", inline=False)
+    latency_embed.add_field(name="Discord WebSocket Latency", value=f"**{websocket_latency}ms**", inline=False)
 
+    # Send the embed as a follow-up message
+    await interaction.followup.send(embed=latency_embed, ephemeral=True)
+
+    
 ################ TOKEN #################
 # Run the bot with the token from the .env file
 # Handle invalid tokens or other errors gracefully
