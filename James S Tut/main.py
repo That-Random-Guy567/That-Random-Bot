@@ -104,7 +104,11 @@ class View(discord.ui.View):
 async def sayHello(interaction: discord.Interaction):
     #await asyncio.sleep(0.05)
     await interaction.response.send_message(view = View())
-
+    
+#-------- testing for no slash commands --------
+@client.command(name="say_hello")
+async def name(ctx):
+    await ctx.send("Hello there!")
 
 
 ################ TOKEN (remove when sharing code) #################

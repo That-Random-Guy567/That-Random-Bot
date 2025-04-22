@@ -60,7 +60,7 @@ class Client(commands.Bot):
         }
         #yt stuff
         self.youtube_upload_channel_id = 1362814303475859719
-        self.youtube_forum_channel_id = 1326207688371212342
+        self.youtube_forum_channel_id = 1364102106939654174
         self.youtube_upload_ping_role = "<@&1362813561667190885>"
         self.feed_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA"
         self.posted_video_ids = set()
@@ -133,6 +133,7 @@ class Client(commands.Bot):
             message.embeds[0].description and
             "Bump done" in message.embeds[0].description
         ):
+            print("----------------------")
             logging.info("[✅ Detected Disboard bump. Resetting timers and enabling reminders.]")
 
             now = asyncio.get_running_loop().time()
@@ -144,6 +145,7 @@ class Client(commands.Bot):
             self.bump["bump_count"] += 1
 
             logging.info(f"[📈 Bump count: {self.bump['bump_count']}]")
+            print("----------------------")
 
             if self.bump["bump_count"] >= 12:
                 bump_ping = "<@&1361940574193586287>"
@@ -440,7 +442,7 @@ async def send_command(
         # Handle any other unexpected errors
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
         logging.info(f"[Error: {e}]")
-        
+
 #------- next bump -------
 # Slash command to check when the next bump reminders will be sent
 @client.tree.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
@@ -502,20 +504,20 @@ async def ping(interaction: discord.Interaction):
     round_trip_latency = round((end_time - start_time) * 1000)  # Convert to milliseconds
 
     # WebSocket latency
-    websocket_latency = round(client.latency * 1000)  # Convert to milliseconds
+    websocket_latency = round(client.latency * 1000, 2)  # Convert to milliseconds with 2 decimal places
 
     # Create the embed
     latency_embed = discord.Embed(
         title="🏓 Pong!",
-        description="Here are the latency details:",
         color=discord.Color.blue()
     )
-    latency_embed.add_field(name="WebSocket Latency", value=f"**{websocket_latency}ms**", inline=False)
-    latency_embed.add_field(name="Round-Trip Latency", value=f"**{round_trip_latency}ms**", inline=False)
+    latency_embed.add_field(name="Discord Bot Latency", value=f"**{round_trip_latency}ms**", inline=False)
+    latency_embed.add_field(name="Discord WebSocket Latency", value=f"**{websocket_latency}ms**", inline=False)
 
     # Send the embed as a follow-up message
-    await interaction.followup.send(embed=latency_embed)
+    await interaction.followup.send(embed=latency_embed, ephemeral=True)
 
+    
 ################ TOKEN #################
 # Run the bot with the token from the .env file
 # Handle invalid tokens or other errors gracefully
