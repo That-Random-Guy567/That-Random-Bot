@@ -31,8 +31,6 @@ intents = discord.Intents.all()
 #logging
 logging.basicConfig(level=logging.INFO)
 
-command_prefix = "!"
-
 GUILD_SERVER_ID = 1311684718554648637   # server ID variable 
 GUILD_ID = discord.Object(id = GUILD_SERVER_ID) # server id
 
@@ -61,6 +59,8 @@ class Client(commands.Bot):
         #yt stuff
         self.youtube_upload_channel_id = 1356190880490324128 
         self.youtube_forum_channel_id = 1364102106939654174
+        self.youtube_resources_channel_id = 1326207688371212342
+        self.youtube_discussion_channel_id = 1364102106939654174
         self.youtube_upload_ping_role = "<@&1345378358464221204>" 
         self.feed_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA"
         self.posted_video_ids = set()
@@ -145,7 +145,6 @@ class Client(commands.Bot):
             self.bump["bump_count"] += 1
 
             logging.info(f"[📈 Bump count: {self.bump['bump_count']}]")
-            print("----------------------")
 
             if self.bump["bump_count"] >= 12:
                 bump_ping = "<@&1355998357033718001>"
@@ -159,7 +158,7 @@ class Client(commands.Bot):
         print(f"[{level}] [{now}] {msg}")
 
 #---- youtube_upload_loop_usage -----
-    @tasks.loop(minutes=10)  # Check every 10 minutes
+    @tasks.loop(minutes=60)
     async def youtube_upload_loop(self):
         print("----------------------")
         self.log("Checking YouTube feed...")
@@ -196,34 +195,35 @@ class Client(commands.Bot):
 
                     if channel:
                         # Send the announcement in the main channel
-                        await channel.send(f"{self.youtube_upload_ping_role} New video just dropped! 🎬\n{video_url}")
+                        await channel.send(
+                            f"{self.youtube_upload_ping_role} New video just dropped! 🎬\n{video_url}")
                         self.log(f"New video uploaded: {video_url}")
 
                     # Create a forum post for the video
                     if forum_channel and isinstance(forum_channel, discord.ForumChannel):
-                        # Find the "Youtube Video" tag or use the last tag in the list
+                        # Determine the tag to apply based on the presence of '#' in the title
                         tag_to_apply = None
-                        if forum_channel.available_tags:
-                            for tag in forum_channel.available_tags:
-                                if tag.name.lower() == "youtube video":
-                                    tag_to_apply = tag
-                                    break
-                            if not tag_to_apply:
-                                tag_to_apply = forum_channel.available_tags[-1]  # Use the last tag if "Youtube Video" is not found
+                        if "#" in latest_video.title:  # Check if the title contains a '#'
+                            tag_to_apply = next(
+                                (tag for tag in forum_channel.available_tags if tag.name.lower() == "shorts"),
+                                None)
                         else:
-                            self.log(f"No tags available in forum channel ID {self.youtube_forum_channel_id}.", level="ERROR")
-                            return
-                        if tag_to_apply:
-                            forum_post = await forum_channel.create_thread(
-                                name=latest_video.title,  # Use the video title as the post title
-                                content=f"🎥 **{latest_video.title}**\n{video_url}",  # Use the video link as the post content
-                                applied_tags=[tag_to_apply.id]  # Apply the selected tag
-                            )
-                            self.log(f"Forum post created for video: {latest_video.title} with tag: {tag_to_apply.name}")
-                        else:
-                            self.log(f"No tags available in forum channel ID {self.youtube_forum_channel_id}.", level="ERROR")
+                            tag_to_apply = next(
+                                (tag for tag in forum_channel.available_tags if tag.name.lower() == "video"),
+                                None)
+
+                        # Create the thread with the appropriate tag
+                        forum_post = await forum_channel.create_thread(
+                            name=latest_video.title,  # Use the video title as the post title
+                            content=f"🎥 **{latest_video.title}**\n{video_url}",  # Use the video link as the post content
+                            applied_tags=[tag_to_apply] if tag_to_apply else []  # Apply the tag if found
+                        )
+                        self.log(
+                            f"Forum post created for video: {latest_video.title} with tag: {tag_to_apply.name if tag_to_apply else 'None'}")
                     else:
-                        self.log(f"Could not find forum channel ID {self.youtube_forum_channel_id} or it is not a ForumChannel.", level="ERROR")
+                        self.log(
+                            f"Could not find forum channel ID {self.youtube_forum_channel_id} or it is not a ForumChannel.",
+                            level="ERROR")
                     self.posted_video_ids.add(video_id)
                 else:
                     self.log(f"Video already posted: {video_id}")
@@ -238,7 +238,6 @@ class Client(commands.Bot):
     async def before_youtube_upload_loop(self):
         await self.wait_until_ready()
         self.log("Bot is ready. Starting YouTube upload loop.")
-
 
 ###########################     MODERATION      ##############################
 
