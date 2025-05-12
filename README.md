@@ -1,5 +1,6 @@
 # Discord_Bot
-If you use this, please credit me somewhere as @That-RandomCoder (github) or @thatrandomblenderguy (youtube, discord)
+If you use this, please credit me somewhere as `@That-Random-Guy567` (github) or `@thatrandomblenderguy` (youtube, discord)
+To install the packages required but this test, Go to ~/Extra/requirements.txt and folllow the instructions to install the packages.
 
 Making custom discord bot that allows for:
 
@@ -25,3 +26,4 @@ Slash Commands
     -> /latency, shows ping of bot from webhook/servers
 
 
+(Subject to change)

@@ -1,1 +1,2 @@
-DISCORD_TOKEN = "paste your token here"
+DISCORD_TOKEN = "TOKEN"
+# replace TOKEN with your actual bot token.
