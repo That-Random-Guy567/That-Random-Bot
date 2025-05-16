@@ -1,8 +1,13 @@
 # Discord_Bot
 If you use this, please credit me somewhere as `@That-Random-Guy567` (github) or `@thatrandomblenderguy` (youtube, discord)
-To install the packages required but this test, Go to ~/Extra/requirements.txt and folllow the instructions to install the packages.
+To install the packages required but this test, Go to `~/Extra/requirements.txt` and folllow the instructions to install the packages.
 
-Making custom discord bot that allows for:
+Table of Contents
+    - Introduction
+    - Contributing
+    - License
+
+## Making custom discord bot that allows for:
 
 Moderation
     -> Logs
@@ -27,3 +32,13 @@ Slash Commands
 
 
 (Subject to change)
+
+## Contributing
+    We welcome contributions! Please follow these steps:
+
+    1. Fork the repository.
+    2. Create a new branch: git checkout -b feature/new-feature
+    3. Make your changes.
+    4. Commit your changes: git commit -m "Add new feature"
+    5. Push to the branch: git push origin feature/new-feature
+    6. Submit a pull request.

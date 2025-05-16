@@ -1,8 +1,8 @@
 # Guild and Channel IDs
 GUILD_SERVER_ID = 1311684718554648637
 
-delete_log_channel_id = 1361330875161116873
-edit_log_channel_id = 1361330924263964692
+DELETE_LOG_CHANNEL_ID = 1361330875161116873
+EDIT_LOG_CHANNEL_ID = 1361330924263964692
 
 YOUTUBE_CONFIG = {
     "FEED_URL" : "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA",
