@@ -1,4 +1,3 @@
-# core/bot.py
 import discord
 from discord.ext import commands
 from datetime import datetime, timezone
@@ -26,4 +25,6 @@ class Client(commands.Bot):
         logger.info("Bot is ready.")
 
     async def on_message(self, message):
+        from modules import games
+        await games.handle_message(message)
         await self.process_commands(message)

@@ -7,6 +7,23 @@ Table of Contents
     - Contributing
     - License
 
+## Game Features
+
+### YO Game
+- Play in a configurable channel: only "Yo", "Yoo", ..., or "Yooo", "Yoo", "Yo", etc.
+- Users must alternate and can increase or decrease O's by exactly one.
+
+### Count Game
+- Play in a configurable channel: count up or down by exactly 1 (1, 2, 3, ...)
+- Users must alternate.
+
+### Setup
+- `/setgame game:<yo|count> channel:<channel>` — set up games in a channel.
+- `/autocreate_offender_role game:<yo|count>` — auto-create and attach O-Offender role.
+- `/attach_offender_role game:<yo|count> role:<role>` — use an existing role as O-Offender.
+
+Breaking the sequence gives you the O-Offender role for that game.
+
 ## Making custom discord bot that allows for:
 
 Moderation
