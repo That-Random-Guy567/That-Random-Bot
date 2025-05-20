@@ -1,4 +1,3 @@
-# modules/slash_commands.py
 import discord
 from discord import app_commands
 from core.bot import Client
@@ -8,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 import asyncio
 import time
 from modules import bump_reminder
+from modules import games
 
 @app_commands.guilds(discord.Object(id=GUILD_SERVER_ID))
 class General(app_commands.Group):
@@ -32,7 +32,7 @@ class General(app_commands.Group):
         color='The color of the embed (e.g., "blurple", "red", "green", or a hex code like #FF5733)',
     )
     async def send_command(
-            self,  # Added self
+            self,
             interaction: discord.Interaction,
             channel: discord.TextChannel,
             message: str = None,
@@ -92,7 +92,7 @@ class General(app_commands.Group):
             else:
                 message_link = ""
             message_sent_embed = discord.Embed(color=discord.Color.green())
-            message_sent_embed.description = f"✅ Message has been sent to {channel_link}. You can view it [here]({message_link})."
+            message_sent_embed.description = f"\u2705 Message has been sent to {channel_link}. You can view it [here]({message_link})."
 
             await interaction.response.send_message(embed=message_sent_embed, ephemeral=False)
 
@@ -110,7 +110,7 @@ class General(app_commands.Group):
             logger.error(f"[Error: {e}]")
 
     @app_commands.command(name="next_bump", description="Check when the next bump reminders will be sent")
-    async def next_bump(self, interaction: discord.Interaction) -> None: # Added self
+    async def next_bump(self, interaction: discord.Interaction) -> None:
         try:
             current_time = asyncio.get_running_loop().time()
             last_ping_time = bump_reminder.bump_config["last_ping_time"]
@@ -127,8 +127,8 @@ class General(app_commands.Group):
                 title="Next Bump Reminders",
                 color=discord.Color.orange()
             )
-            next_bump.add_field(name="🔔 Ping Reminder (@Bumper)", value=f"In **{ping_time_formatted}**", inline=False)
-            next_bump.add_field(name="💬 Normal Bump Reminder", value=f"In **{normal_time_formatted}**", inline=False)
+            next_bump.add_field(name="\ud83d\udd14 Ping Reminder (@Bumper)", value=f"In **{ping_time_formatted}**", inline=False)
+            next_bump.add_field(name="\ud83d\udcac Normal Bump Reminder", value=f"In **{normal_time_formatted}**", inline=False)
 
             await interaction.response.send_message(embed=next_bump)
         except Exception as e:
@@ -136,32 +136,59 @@ class General(app_commands.Group):
                                                     ephemeral=True)
 
     @app_commands.command(name="uptime", description="Shows how long the bot has been online")
-    async def uptime(self, interaction: discord.Interaction): # Added self
+    async def uptime(self, interaction: discord.Interaction):
         now = datetime.now(timezone.utc)
         delta = now - interaction.client.start_time
         uptime_str = str(timedelta(seconds=int(delta.total_seconds())))
 
         uptime_embed = discord.Embed(
-            title="🕒 Bot Uptime",
+            title="\ud83d\udd52 Bot Uptime",
             description=f"The bot has been running for **{uptime_str}**",
             color=discord.Color.green()
         )
         await interaction.response.send_message(embed=uptime_embed)
 
     @app_commands.command(name="ping", description="Check the bot's latency")
-    async def ping(self, interaction: discord.Interaction): # Added self
+    async def ping(self, interaction: discord.Interaction):
         start_time = time.perf_counter()
-        await interaction.response.send_message("🏓 Pong!")
+        await interaction.response.send_message("\ud83c\udfd3 Pong!")
         end_time = time.perf_counter()
         round_trip_latency = round((end_time - start_time) * 1000)
         websocket_latency = round(interaction.client.latency * 1000, 2)
         latency_embed = discord.Embed(
-            title="🏓 Pong!",
+            title="\ud83c\udfd3 Pong!",
             color=discord.Color.blue()
         )
         latency_embed.add_field(name="Discord Bot Latency", value=f"**{round_trip_latency}ms**", inline=False)
         latency_embed.add_field(name="Discord WebSocket Latency", value=f"**{websocket_latency}ms**", inline=False)
         await interaction.followup.send(embed=latency_embed, ephemeral=True)
 
+class Games(app_commands.Group):
+    @app_commands.command(name="setgame", description="Set the game type (yo/count) and channel")
+    @app_commands.describe(game="The game to play", channel="Channel to play the game in")
+    async def setgame(self, interaction: discord.Interaction, game: str, channel: discord.TextChannel):
+        if game not in ("yo", "count"):
+            await interaction.response.send_message("Game must be 'yo' or 'count'.", ephemeral=True)
+            return
+        await games.set_game_channel(game, channel)
+        await interaction.response.send_message(f"Set {game} game to channel {channel.mention}.")
+
+    @app_commands.command(name="autocreate_offender_role", description="Auto-create the O-Offender role for the game")
+    @app_commands.describe(game="The game to assign the O-Offender role for")
+    async def autocreate_offender_role(self, interaction: discord.Interaction, game: str):
+        role = await games.create_offender_role(interaction.guild)
+        if role:
+            await games.set_offender_role(game, role)
+            await interaction.response.send_message(f"Created and attached {role.mention} as O-Offender for {game} game.")
+        else:
+            await interaction.response.send_message("Could not create role (permission issue).", ephemeral=True)
+
+    @app_commands.command(name="attach_offender_role", description="Attach an existing role as O-Offender")
+    @app_commands.describe(game="The game to assign the O-Offender role for", role="The role to use")
+    async def attach_offender_role(self, interaction: discord.Interaction, game: str, role: discord.Role):
+        await games.set_offender_role(game, role)
+        await interaction.response.send_message(f"Attached {role.mention} as O-Offender for {game} game.")
+
 async def setup_slash_commands(bot: Client):
-    bot.tree.add_command(General())  # Instantiate General here
+    bot.tree.add_command(General())
+    bot.tree.add_command(Games())
