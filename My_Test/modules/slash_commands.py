@@ -1,21 +1,17 @@
 # modules/slash_commands.py
 import discord
 from discord import app_commands
-from core.bot import Client  # Import Client
-from core.logging import logger
-from constants import GUILD_SERVER_ID, GUILD_ID  # Import the global ID from constants
-from datetime import datetime, timezone, timedelta
 import asyncio
 import time
+
+from core.bot import Client  # Import Client
+from core.logging import logger
+from constants import GUILD_SERVER_ID  # Import the global ID from constants
+from datetime import datetime, timezone, timedelta
 from modules import bump_reminder
 
-# No need for a class if you want commands directly under the bot
-# class GeneralCommands(app_commands.Group):
-#     def __init__(self, bot: Client):
-#         self.bot = bot
-#         super().__init__(name="general", description="General commands")
 
-@app_commands.command(name="discordcommand", description="Subscribe to That Random Blender Guy", guild=GUILD_ID)
+@app_commands.command(name="subscribe", description="Subscribe to That Random Blender Guy")
 async def subscribe(interaction: discord.Interaction):
     subscribe_embed = discord.Embed(
         title="Subscribe Here",
@@ -27,7 +23,7 @@ async def subscribe(interaction: discord.Interaction):
         url="https://cdn.discordapp.com/emojis/1328989641684291597.webp?size=48&name=ThatRandomBlenderGuyLogo")
     await interaction.response.send_message(embed=subscribe_embed)
 
-@app_commands.command(name="send", description="Sends a message to a specific channel", guild=GUILD_ID)
+@app_commands.command(name="send", description="Sends a message to a specific channel")
 @app_commands.describe(
     channel='The channel you want to send the message to.',
     message="The main message you want to send",
@@ -112,7 +108,7 @@ async def send_command(
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
         logger.error(f"[Error: {e}]")
 
-@app_commands.command(name="next_bump", description="Check when the next bump reminders will be sent", guild=GUILD_ID)
+@app_commands.command(name="next_bump", description="Check when the next bump reminders will be sent")
 async def next_bump(interaction: discord.Interaction) -> None:
     try:
         current_time = asyncio.get_running_loop().time()
@@ -138,7 +134,7 @@ async def next_bump(interaction: discord.Interaction) -> None:
         await interaction.response.send_message(f"Something went wrong while checking bump timers: `{e}`",
                                                     ephemeral=True)
 
-@app_commands.command(name="uptime", description="Shows how long the bot has been online", guild=GUILD_ID)
+@app_commands.command(name="uptime", description="Shows how long the bot has been online")
 async def uptime(interaction: discord.Interaction):
     now = datetime.now(timezone.utc)
     delta = now - interaction.client.start_time # Access start_time from interaction.client
@@ -151,7 +147,7 @@ async def uptime(interaction: discord.Interaction):
     )
     await interaction.response.send_message(embed=uptime_embed)
 
-@app_commands.command(name="ping", description="Check the bot's latency", guild=GUILD_ID)
+@app_commands.command(name="ping", description="Check the bot's latency")
 async def ping(interaction: discord.Interaction):
     start_time = time.perf_counter()
     await interaction.response.send_message("🏓 Pong!")
@@ -167,9 +163,19 @@ async def ping(interaction: discord.Interaction):
     await interaction.followup.send(embed=latency_embed, ephemeral=True)
 
 async def setup_slash_commands(bot: Client):
-    # bot.tree.add_command(GeneralCommands(bot))  # Remove this line
-    bot.tree.add_command(subscribe) # Add each command directly
-    bot.tree.add_command(send_command)
-    bot.tree.add_command(next_bump)
-    bot.tree.add_command(uptime)
-    bot.tree.add_command(ping)
+    try:
+        guild = discord.Object(id=GUILD_SERVER_ID)  # Make sure GUILD_SERVER_ID is an integer
+        
+        # Add commands to the guild
+        bot.tree.add_command(subscribe)  # Remove guild parameter
+        bot.tree.add_command(send_command)
+        bot.tree.add_command(next_bump)
+        bot.tree.add_command(uptime)
+        bot.tree.add_command(ping)
+        
+        # Sync the commands with Discord
+        synced = await bot.tree.sync(guild=guild)
+        print(f"Synced {len(synced)} commands to the guild.")
+        
+    except Exception as e:
+        print(f"Error setting up slash commands: {e}")
