@@ -6,7 +6,7 @@ import time
 
 from core.bot import Client  # Import Client
 from core.logging import logger
-from constants import GUILD_SERVER_ID  # Import the global ID from constants
+from constants import GUILD_SERVER_ID, GUILD_ID  # Import the global ID from constants
 from datetime import datetime, timezone, timedelta
 from modules import bump_reminder
 
@@ -14,17 +14,16 @@ from modules import bump_reminder
 async def setup_slash_commands(bot: Client):
     """Set up and sync slash commands to the guild."""
     try:
-        guild = discord.Object(id=GUILD_SERVER_ID)
         
         # Add commands to the tree
-        bot.tree.add_command(subscribe)
-        bot.tree.add_command(send_command)
-        bot.tree.add_command(next_bump)
-        bot.tree.add_command(uptime)
-        bot.tree.add_command(ping)
+        bot.tree.add_command(subscribe, guild=GUILD_ID)
+        bot.tree.add_command(send_command, guild=GUILD_ID)
+        bot.tree.add_command(next_bump, guild=GUILD_ID)
+        bot.tree.add_command(uptime, guild=GUILD_ID)
+        bot.tree.add_command(ping, guild=GUILD_ID)
         
         # Sync commands with Discord
-        synced = await bot.tree.sync(guild=guild)
+        synced = await bot.tree.sync(guild=GUILD_ID)
         logger.info(f"Synced {len(synced)} commands to guild {GUILD_SERVER_ID}")
         
     except Exception as e:
