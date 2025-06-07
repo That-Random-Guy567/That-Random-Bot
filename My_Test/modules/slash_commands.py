@@ -11,6 +11,27 @@ from datetime import datetime, timezone, timedelta
 from modules import bump_reminder
 
 
+async def setup_slash_commands(bot: Client):
+    """Set up and sync slash commands to the guild."""
+    try:
+        guild = discord.Object(id=GUILD_SERVER_ID)
+        
+        # Add commands to the tree
+        bot.tree.add_command(subscribe)
+        bot.tree.add_command(send_command)
+        bot.tree.add_command(next_bump)
+        bot.tree.add_command(uptime)
+        bot.tree.add_command(ping)
+        
+        # Sync commands with Discord
+        synced = await bot.tree.sync(guild=guild)
+        logger.info(f"Synced {len(synced)} commands to guild {GUILD_SERVER_ID}")
+        
+    except Exception as e:
+        logger.error(f"Error setting up slash commands: {e}")
+        raise
+
+
 @app_commands.command(name="subscribe", description="Subscribe to That Random Blender Guy")
 async def subscribe(interaction: discord.Interaction):
     subscribe_embed = discord.Embed(
@@ -161,21 +182,3 @@ async def ping(interaction: discord.Interaction):
     latency_embed.add_field(name="Discord Bot Latency", value=f"**{round_trip_latency}ms**", inline=False)
     latency_embed.add_field(name="Discord WebSocket Latency", value=f"**{websocket_latency}ms**", inline=False)
     await interaction.followup.send(embed=latency_embed, ephemeral=True)
-
-async def setup_slash_commands(bot: Client):
-    try:
-        guild = discord.Object(id=GUILD_SERVER_ID)  # Make sure GUILD_SERVER_ID is an integer
-        
-        # Add commands to the guild
-        bot.tree.add_command(subscribe)  # Remove guild parameter
-        bot.tree.add_command(send_command)
-        bot.tree.add_command(next_bump)
-        bot.tree.add_command(uptime)
-        bot.tree.add_command(ping)
-        
-        # Sync the commands with Discord
-        synced = await bot.tree.sync(guild=guild)
-        print(f"Synced {len(synced)} commands to the guild.")
-        
-    except Exception as e:
-        print(f"Error setting up slash commands: {e}")
