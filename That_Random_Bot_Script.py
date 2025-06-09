@@ -5,10 +5,14 @@ from core.bot import Client
 from core.logging import logger
 from config import TOKEN
 from constants import GUILD_SERVER_ID
-from modules import moderation
-from modules import bump_reminder
-from modules import youtube_loop
-from modules import slash_commands
+from modules import (
+    moderation,
+    bump_reminder,
+    youtube_loop,
+    slash_commands,
+    auto_responders,
+    counting,
+    )
 
 class BotClient(Client):
     def __init__(self):
@@ -41,7 +45,14 @@ class BotClient(Client):
             # Setup slash commands
             await slash_commands.setup_slash_commands(self)
             logger.info("Slash commands setup complete")
-            
+
+            await counting.setup_counting(self)
+            logger.info("Counting module setup complete")
+
+            # Setup auto responders
+            await auto_responders.setup_auto_responders(self)
+            logger.info("Auto responders setup complete")
+
             logger.info("All tasks setup complete!")
             
         except Exception as e:
@@ -50,6 +61,7 @@ class BotClient(Client):
 
     async def on_ready(self):
         """Called when the bot is ready and connected to Discord."""
+        logger.info("------")
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
         logger.info("------")
 
