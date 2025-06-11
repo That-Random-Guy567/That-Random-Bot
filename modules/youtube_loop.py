@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 
 from core.bot import Client
-from core.logging import logger, print_separator
+from core.logging import logger
 from constants import YOUTUBE_CONFIG
 from constants import TIME_INTERVAL
 
