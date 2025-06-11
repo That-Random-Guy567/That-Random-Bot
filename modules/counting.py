@@ -3,10 +3,53 @@ from discord.ext import commands
 from core.logging import logger
 from core.bot import Client
 from constants import COUNTING_CHANNEL_ID, EMOJIS
+import json
+import os
 
-# Counting data storage
-count_data = {}  # Stores counting progress
+# File path for saving count data - make it absolute
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+DATA_FILE = os.path.join(DATA_DIR, 'counting.json')
 
+# Create data directory if it doesn't exist
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    logger.info(f"Data directory ensured at: {DATA_DIR}")
+except Exception as e:
+    logger.error(f"Failed to create data directory: {e}")
+
+# Load saved data if it exists
+def load_count_data():
+    """Load counting data from file"""
+    try:
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                # Convert channel ID to string for consistent key lookup
+                cleaned_data = {}
+                for chan_id, values in data.items():
+                    cleaned_data[str(chan_id)] = values
+                logger.info(f"Loaded existing count data: {cleaned_data}")
+                return cleaned_data
+        else:
+            logger.info("No existing count data found, starting fresh")
+            return {}
+    except Exception as e:
+        logger.error(f"Failed to load counting data: {e}")
+        return {}
+
+# Initialize count data
+count_data = load_count_data()
+
+def save_count_data():
+    """Save counting data to file"""
+    try:
+        with open(DATA_FILE, 'w') as f:
+            json.dump(count_data, f, indent=4)
+            logger.info(f"Count data saved successfully")
+    except Exception as e:
+        logger.error(f"Failed to save counting data: {e}")
+
+        
 async def handle_counting(message: discord.Message):
     """Handle counting messages"""
     # Ignore bot messages
@@ -14,47 +57,49 @@ async def handle_counting(message: discord.Message):
         logger.debug(f"Ignoring bot message in counting channel from {message.author}")
         return
 
-    # Check if message is in counting channel
+    # Check if message is in counting channel and is numeric
+    content = message.content.strip()
+    try:
+        current = int(content)
+    except ValueError:
+        # Not a number, ignore the message
+        return
+
     if message.channel.id == COUNTING_CHANNEL_ID:
-        logger.info(f"Processing count from {message.author}: {message.content}")
-        chan_id = message.channel.id
+        logger.info(f"Processing count from {message.author}: {current}")
+        # Convert channel ID to string for consistent key lookup
+        chan_id = str(message.channel.id)
         data = count_data.get(chan_id, {"last_count": 0, "last_user": None})
         last_count, last_user = data["last_count"], data["last_user"]
-        content = message.content.strip()
 
-        try:
-            current = int(content)
-            logger.info(f"Valid number received: {current} (last: {last_count})")
-            
-            if last_count == 0 and current != 1:
-                reason = f"wrong number (expected 1, got {current})"
-            elif message.author.id == last_user:
-                reason = "You counted twice in a row"
-            elif current != last_count + 1:
-                reason = f"wrong number (expected {last_count + 1}, got {current})"
-            else:
-                reason = None
+        if last_count == 0 and current != 1:
+            reason = f"wrong number (expected 1, got {current})"
+        elif message.author.id == last_user:
+            reason = "You counted twice in a row"
+        elif current != last_count + 1:
+            reason = f"wrong number (expected {last_count + 1}, got {current})"
+        else:
+            reason = None
 
-            if reason:
-                logger.info(f"Count failed: {reason}")
-                try:
-                    await message.add_reaction(EMOJIS['PEPE_NO'])
-                    await message.channel.send(
-                        f"{message.author.mention} Counting error: {reason}. Counter reset to 0."
-                    )
-                    count_data[chan_id] = {"last_count": 0, "last_user": None}
-                except discord.HTTPException as e:
-                    logger.error(f"Failed to add reaction or send message: {e}")
-            else:
-                logger.info(f"Count successful: {current}")
-                try:
-                    await message.add_reaction(EMOJIS['PEPE_YES'])
-                    count_data[chan_id] = {"last_count": current, "last_user": message.author.id}
-                except discord.HTTPException as e:
-                    logger.error(f"Failed to add reaction: {e}")
-
-        except ValueError:
-            logger.debug(f"Ignored non-numeric message: {content}")
+        if reason:
+            logger.info(f"Count failed: {reason}")
+            try:
+                await message.add_reaction(EMOJIS['PEPE_NO'])
+                await message.channel.send(
+                    f"{message.author.mention} Counting error: {reason}. Counter reset to 0."
+                )
+                count_data[chan_id] = {"last_count": 0, "last_user": None}
+                save_count_data()
+            except discord.HTTPException as e:
+                logger.error(f"Failed to add reaction or send message: {e}")
+        else:
+            logger.info(f"Count successful: {current}")
+            try:
+                await message.add_reaction(EMOJIS['PEPE_YES'])
+                count_data[chan_id] = {"last_count": current, "last_user": message.author.id}
+                save_count_data()
+            except discord.HTTPException as e:
+                logger.error(f"Failed to add reaction: {e}")
 
 async def setup_counting(bot: Client) -> None:
     """Setup counting system"""
