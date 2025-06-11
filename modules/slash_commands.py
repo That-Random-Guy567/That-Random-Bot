@@ -3,12 +3,16 @@ import discord
 from discord import app_commands
 import asyncio
 import time
+from datetime import datetime, timezone, timedelta
 
 from core.bot import Client  # Import Client
 from core.logging import logger
 from constants import GUILD_SERVER_ID, GUILD_ID  # Import the global ID from constants
-from datetime import datetime, timezone, timedelta
+
 from modules import bump_reminder
+
+from modules.counting import count_data
+from constants import COUNTING_CHANNEL_ID
 
 
 async def setup_slash_commands(bot: Client):
@@ -21,6 +25,7 @@ async def setup_slash_commands(bot: Client):
         bot.tree.add_command(next_bump, guild=GUILD_ID)
         bot.tree.add_command(uptime, guild=GUILD_ID)
         bot.tree.add_command(ping, guild=GUILD_ID)
+        bot.tree.add_command(count, guild=GUILD_ID)
         
         # Sync commands with Discord
         synced = await bot.tree.sync(guild=GUILD_ID)
@@ -43,6 +48,7 @@ async def subscribe(interaction: discord.Interaction):
         url="https://cdn.discordapp.com/emojis/1328989641684291597.webp?size=48&name=ThatRandomBlenderGuyLogo")
     await interaction.response.send_message(embed=subscribe_embed)
 
+#---------------- Send Command ----------------
 @app_commands.command(name="send", description="Sends a message to a specific channel")
 @app_commands.describe(
     channel='The channel you want to send the message to.',
@@ -128,6 +134,7 @@ async def send_command(
         await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
         logger.error(f"[Error: {e}]")
 
+#---------------- Next Bump Command ----------------
 @app_commands.command(name="next_bump", description="Check when the next bump reminders will be sent")
 async def next_bump(interaction: discord.Interaction) -> None:
     try:
@@ -151,9 +158,9 @@ async def next_bump(interaction: discord.Interaction) -> None:
 
         await interaction.response.send_message(embed=next_bump)
     except Exception as e:
-        await interaction.response.send_message(f"Something went wrong while checking bump timers: `{e}`",
-                                                    ephemeral=True)
+        await interaction.response.send_message(f"Something went wrong while checking bump timers: `{e}`",ephemeral=True)
 
+#---------------- Uptime Command ----------------
 @app_commands.command(name="uptime", description="Shows how long the bot has been online")
 async def uptime(interaction: discord.Interaction):
     now = datetime.now(timezone.utc)
@@ -167,17 +174,80 @@ async def uptime(interaction: discord.Interaction):
     )
     await interaction.response.send_message(embed=uptime_embed)
 
+#---------------- Ping Command ----------------
 @app_commands.command(name="ping", description="Check the bot's latency")
 async def ping(interaction: discord.Interaction):
-    start_time = time.perf_counter()
-    await interaction.response.send_message("🏓 Pong!")
-    end_time = time.perf_counter()
-    round_trip_latency = round((end_time - start_time) * 1000)
-    websocket_latency = round(interaction.client.latency * 1000, 2) # Access latency from interaction.client
+    # Get websocket heartbeat latency
+    websocket_latency = round(interaction.client.latency * 1000)
+    
+    # Create initial embed
     latency_embed = discord.Embed(
         title="🏓 Pong!",
         color=discord.Color.blue()
     )
-    latency_embed.add_field(name="Discord Bot Latency", value=f"**{round_trip_latency}ms**", inline=False)
-    latency_embed.add_field(name="Discord WebSocket Latency", value=f"**{websocket_latency}ms**", inline=False)
-    await interaction.followup.send(embed=latency_embed, ephemeral=True)
+    
+    # Measure REST API latency
+    before = time.perf_counter()
+    await interaction.response.defer()  # Much lighter than sending a message
+    after = time.perf_counter()
+    api_latency = round((after - before) * 1000)
+    
+    # Add fields
+    latency_embed.add_field(
+        name="WebSocket Heartbeat", 
+        value=f"**{websocket_latency}ms**", 
+        inline=True
+    )
+    latency_embed.add_field(
+        name="REST API Latency", 
+        value=f"**{api_latency}ms**", 
+        inline=True
+    )
+    
+    await interaction.followup.send(embed=latency_embed)
+    logger.info(f"Ping command used - WS: {websocket_latency}ms, API: {api_latency}ms")
+
+
+#---------------- Counting Channel Command ----------------
+@app_commands.command(name="count", description="Shows the current count in the counting channel")
+async def count(interaction: discord.Interaction):
+    """Shows the current count in the counting channel"""
+    try:
+        # Get the count data for the counting channel
+        chan_id = str(COUNTING_CHANNEL_ID)
+        data = count_data.get(chan_id, {"last_count": 0, "last_user": None})
+        current_count = data["last_count"]
+        last_counter = data["last_user"]
+
+        # Create embed
+        count_embed = discord.Embed(
+            title="🔢 Current Count",
+            color=discord.Color.blue()
+        )
+        
+        # Add count field
+        count_embed.add_field(
+            name="Current Number", 
+            value=f"**{current_count}**",
+            inline=False
+        )
+
+        # Add last counter if there is one
+        if last_counter:
+            last_counter_user = interaction.guild.get_member(last_counter)
+            counter_name = last_counter_user.display_name if last_counter_user else "Unknown User"
+            count_embed.add_field(
+                name="Last Counter",
+                value=f"**{counter_name}**",
+                inline=False
+            )
+
+        await interaction.response.send_message(embed=count_embed)
+        logger.info(f"Count command used - Current count: {current_count}")
+
+    except Exception as e:
+        await interaction.response.send_message(
+            "Something went wrong while checking the count.", 
+            ephemeral=True
+        )
+        logger.error(f"Error in count command: {e}")
