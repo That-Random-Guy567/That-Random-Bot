@@ -1,10 +1,12 @@
 import discord
 from discord.ext import commands
+import json
+import os
+
 from core.logging import logger
 from core.bot import Client
 from constants import COUNTING_CHANNEL_ID, EMOJIS
-import json
-import os
+
 
 # File path for saving count data - make it absolute
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
@@ -66,6 +68,7 @@ async def handle_counting(message: discord.Message):
         return
 
     if message.channel.id == COUNTING_CHANNEL_ID:
+        logger.print_separator()
         logger.info(f"Processing count from {message.author}: {current}")
         # Convert channel ID to string for consistent key lookup
         chan_id = str(message.channel.id)

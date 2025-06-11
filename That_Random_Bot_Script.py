@@ -1,18 +1,20 @@
 import discord
 import asyncio
+import signal
 
 from core.bot import Client
 from core.logging import logger
 from config import TOKEN
 from constants import GUILD_SERVER_ID
+
 from modules import (
     moderation,
     bump_reminder,
     youtube_loop,
-    slash_commands,
     auto_responders,
     counting,
     )
+from modules.commands.slash_commands import setup_slash_commands
 
 class BotClient(Client):
     def __init__(self):
@@ -27,6 +29,10 @@ class BotClient(Client):
     async def setup_hook(self):
         """Initialize the bot when it first connects to Discord."""
         self.loop.create_task(self.setup_tasks())
+        
+        # Setup signal handlers here instead
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            self.loop.add_signal_handler(sig, lambda: self.loop.create_task(self.close()))
 
     async def setup_tasks(self):
         """Set up all bot tasks and modules."""
@@ -43,7 +49,7 @@ class BotClient(Client):
             logger.info("YouTube loop setup complete")
             
             # Setup slash commands
-            await slash_commands.setup_slash_commands(self)
+            await setup_slash_commands(self)
             logger.info("Slash commands setup complete")
 
             await counting.setup_counting(self)
@@ -64,6 +70,25 @@ class BotClient(Client):
         logger.info("------")
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
         logger.info("------")
+
+    async def close(self):
+        """Clean shutdown of the bot."""
+        try:
+            logger.info("Shutting down bot...")
+            # Clean up tasks
+            if hasattr(self, 'youtube_loop'):
+                youtube_loop.youtube_upload_loop.stop()
+            await super().close()
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
+
+def create_signal_handler(client: BotClient):
+    """Create signal handler with client reference"""
+    def signal_handler():
+        """Handle system shutdown signals"""
+        logger.info("Received shutdown signal")
+        client.loop.create_task(client.close())
+    return signal_handler
 
 async def main():
     """Main entry point for the bot."""
