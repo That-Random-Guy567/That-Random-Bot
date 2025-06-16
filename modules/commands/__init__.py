@@ -1,7 +1,7 @@
 from .slash_commands import setup_slash_commands
 from .bump import next_bump
 from .count import count
-from .Social_Media import subscribe
+from .social_media import subscribe
 from .bot_info import ping, uptime, send_command
 from .ticket_creation import ticket
 from .help import help_info

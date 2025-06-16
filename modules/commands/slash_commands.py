@@ -7,7 +7,7 @@ from constants import GUILD_SERVER_INT, GUILD_ID
 from .bot_info import ping, uptime, send_command
 from .count import count
 from .bump import next_bump
-from .Social_Media import subscribe
+from .social_media import subscribe
 from .ticket_creation import ticket
 from .help import help_info
 
