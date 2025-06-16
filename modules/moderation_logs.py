@@ -11,7 +11,7 @@ async def on_message_delete(message: discord.Message):
         logger.error(f"Could not find log channel with ID {DELETE_LOG_CHANNEL_ID}")
         return
 
-    if message.author == message.guild.me:
+    if message.author.bot:
         return
 
     author_ping = message.author.mention if message.author else "Unknown User"
@@ -40,7 +40,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
         logger.error(f"Could not find log channel with ID {EDIT_LOG_CHANNEL_ID}")
         return
 
-    if before.author == after.guild.me:
+    if before.author.bot:
         return
 
     author_ping = before.author.mention if before.author else "Unknown User"
