@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Set
 
 from .logging import logger
-from constants import BOT_PREFIX, GUILD_SERVER_ID
+from constants import BOT_PREFIX, GUILD_SERVER_INT
 
 class Client(commands.Bot):
     """Custom Discord bot client with extended functionality.
@@ -27,7 +27,7 @@ class Client(commands.Bot):
 
     async def on_ready(self) -> None:
         try:
-            guild = discord.Object(id=GUILD_SERVER_ID)
+            guild = discord.Object(id=GUILD_SERVER_INT)
             synced = await self.tree.sync(guild=guild)
             logger.info(
                 f"Bot {self.user} is ready! Synced {len(synced)} commands to guild {guild.id}"

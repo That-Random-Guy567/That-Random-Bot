@@ -8,7 +8,6 @@ import signal
 from core.bot import Client
 from core.logging import logger
 from config import TOKEN
-from constants import GUILD_SERVER_ID
 
 from modules import (
     bump_reminder,

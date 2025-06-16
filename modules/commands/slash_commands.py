@@ -1,7 +1,7 @@
 from discord import app_commands
 from core.bot import Client
 from core.logging import logger
-from constants import GUILD_SERVER_ID, GUILD_ID
+from constants import GUILD_SERVER_INT, GUILD_ID
 
 # Import commands from their respective modules
 from .bot_info import ping, uptime, send_command
@@ -30,7 +30,7 @@ async def setup_slash_commands(bot: Client):
         
         # Sync commands with Discord
         synced = await bot.tree.sync(guild=GUILD_ID)
-        logger.info(f"Synced {len(synced)} commands to guild {GUILD_SERVER_ID}")
+        logger.info(f"Synced {len(synced)} commands to guild {GUILD_SERVER_INT}")
         
     except Exception as e:
         logger.error(f"Error setting up slash commands: {e}")
