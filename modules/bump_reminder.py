@@ -2,7 +2,12 @@
 import asyncio
 import discord
 from discord.ext import tasks
-from core.bot import Client
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.bot import Client
+
 from core.logging import logger
 from constants import BUMP_CONFIG
 
@@ -11,7 +16,7 @@ bump_config = BUMP_CONFIG.copy()  # Create a copy to avoid unintended modificati
 
 # Loop to send bump reminders at regular intervals
 @tasks.loop(seconds=60)  # Check every 60 seconds
-async def bump_reminder_loop(bot: Client, channel: discord.TextChannel):
+async def bump_reminder_loop(bot: "Client", channel: discord.TextChannel):
     if not bump_config["enabled"]:
         return  # Exit if not enabled
 
@@ -28,14 +33,14 @@ async def bump_reminder_loop(bot: Client, channel: discord.TextChannel):
         await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
         bump_config["last_normal_message_time"] = now
 
-async def setup_bump_reminder(bot: Client):
+async def setup_bump_reminder(bot: "Client"):
     channel = bot.get_channel(bump_config["channel_id"])
     if channel is None:
         logger.error("[Bump reminder channel not found.]")
         return
     bump_reminder_loop.start(bot, channel)
 
-async def on_message(bot: Client, message: discord.Message):
+async def on_message(bot: "Client", message: discord.Message):
     if (
             message.author.bot and
             message.embeds and

@@ -5,14 +5,19 @@ from discord.ext import tasks
 import time
 from datetime import datetime
 
-from core.bot import Client
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.bot import Client
+
 from core.logging import logger
 from constants import YOUTUBE_CONFIG
 from constants import TIME_INTERVAL
 
 logger.info(f"Using time interval: {TIME_INTERVAL} minute(s)")
 @tasks.loop(minutes=TIME_INTERVAL)
-async def youtube_upload_loop(bot: Client):
+async def youtube_upload_loop(bot: "Client"):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.print_separator()
     logger.info(f"YouTube loop iteration starting at {current_time}")
@@ -86,7 +91,7 @@ async def youtube_upload_loop(bot: Client):
 
 _bot_instance = None #global var to store bot instance
 
-async def setup_youtube_loop(bot: Client):
+async def setup_youtube_loop(bot: "Client"):
     """Setup and start the YouTube loop."""
     try:
         global _bot_instance

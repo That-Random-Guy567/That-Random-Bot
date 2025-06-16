@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Set
 
 from .logging import logger
-from constants import GUILD_SERVER_ID
+from constants import BOT_PREFIX, GUILD_SERVER_ID
 
 class Client(commands.Bot):
     """Custom Discord bot client with extended functionality.
@@ -19,15 +19,13 @@ class Client(commands.Bot):
         first_run (bool): Flag to track first run status
     """
     
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialize the bot client with custom attributes."""
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.start_time: datetime = datetime.now(timezone.utc)
         self.posted_video_ids: Set[str] = set()
         self.first_run: bool = True
 
     async def on_ready(self) -> None:
-        """Handle bot ready event and sync commands."""
         try:
             guild = discord.Object(id=GUILD_SERVER_ID)
             synced = await self.tree.sync(guild=guild)
@@ -36,8 +34,45 @@ class Client(commands.Bot):
             )
         except Exception as e:
             logger.error(f"Error syncing commands: {e}")
-            raise  # Re-raise to ensure errors aren't silently ignored
+            raise
 
     async def on_message(self, message: discord.Message) -> None:
-        """Process incoming messages for commands."""
+        # Disboard bump detection logic
+        if (
+            message.author.bot and
+            message.embeds and
+            message.embeds[0].description and
+            "Bump done!" in message.embeds[0].description
+        ):
+            # Import here to avoid circular import
+            from modules import bump_reminder
+            await bump_reminder.on_disboard_bump(self, message)
+
+        # Always call this to keep command handling working
         await self.process_commands(message)
+
+    async def setup_hook(self) -> None:
+        """Set up bot modules asynchronously after bot is ready."""
+        logger.info("Setting up extensions and modules...")
+
+        # Import setup functions here to avoid circular imports
+        from modules.bump_reminder import setup_bump_reminder
+        from modules.youtube_loop import setup_youtube_loop
+
+        await setup_bump_reminder(self)
+        await setup_youtube_loop(self)
+
+        logger.info("Modules setup complete.")
+
+
+# Instantiate the bot with intents and prefix
+intents = discord.Intents.all()
+bot = Client(command_prefix=BOT_PREFIX, intents=intents)
+
+# Import modules at the end to avoid circular imports
+import modules.bump_reminder
+import modules.youtube_loop
+import modules.moderation_logs
+import modules.commands
+import modules.auto_responders
+import modules.counting

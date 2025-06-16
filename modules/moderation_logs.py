@@ -1,6 +1,6 @@
 # modules/moderation.py
 import discord
-from core.bot import Client
+
 from core.logging import logger
 from constants import DELETE_LOG_CHANNEL_ID, EDIT_LOG_CHANNEL_ID # Import constants
 

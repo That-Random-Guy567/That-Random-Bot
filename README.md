@@ -1,6 +1,6 @@
 # Discord_Bot
 If you use this, please credit me somewhere as `@That-Random-Guy567` (github) or `@thatrandomblenderguy` (youtube, discord)
-To install the packages required but this test, Go to `~/Extra/requirements.txt` and folllow the instructions to install the packages.
+To install the packages required but this test, Go to `~/Extra/requirements.txt` and do `pip3 install -r requirements.txt`
 To make this code work for your server, change the values in `~/constants.py` to the server/channel ids
 
 Table of Contents

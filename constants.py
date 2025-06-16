@@ -1,5 +1,6 @@
 # Guild and Channel IDs
 import discord
+
 GUILD_SERVER_ID = 1311684718554648637
 GUILD_ID = discord.Object(id = GUILD_SERVER_ID) # server id
 
@@ -10,9 +11,20 @@ TIME_INTERVAL = 60 # minutes
 COUNTING_CHANNEL_ID = 1381569756175269888
 
 
+TICKET_DATA = {
+    "CATEGORY_ID": 1382293749828292638,  # ID of the category where tickets will be created
+    "SUPPORT_ROLE_ID": 1311687596098981898,  # ID of the support role that can manage tickets
+    "TRANSCRIPTS_CHANNEL_ID": 1384037966749630464,  # ID of the channel where transcripts will be sent
+    "TICKET_CHANNEL_ID": 1356184033268203601,  # ID of the channel where ticket creation messages will be sent
+}
+
+BOT_PREFIX = "!"
+
+
 EMOJIS = {
     "PEPE_YES": "<:pepe_yes:1381571891265011772>",
     "PEPE_NO": "<:pepe_no:1381571865063194727>",
+    "BOT_PFP": "<:bot_pfp:1381571919958249562>",
 }
 
 YOUTUBE_CONFIG = {

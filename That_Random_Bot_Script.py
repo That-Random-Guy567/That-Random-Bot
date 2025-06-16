@@ -1,3 +1,6 @@
+from keep_alive import keep_alive
+keep_alive()
+
 import discord
 import asyncio
 import signal
@@ -8,12 +11,14 @@ from config import TOKEN
 from constants import GUILD_SERVER_ID
 
 from modules import (
-    moderation,
     bump_reminder,
+    moderation_logs,
     youtube_loop,
     auto_responders,
     counting,
+    tickets,
     )
+
 from modules.commands.slash_commands import setup_slash_commands
 
 class BotClient(Client):
@@ -22,8 +27,8 @@ class BotClient(Client):
         super().__init__(command_prefix="!", intents=intents)
         
         # Register event listeners
-        self.on_message_delete = moderation.on_message_delete
-        self.on_message_edit = moderation.on_message_edit
+        self.on_message_delete = moderation_logs.on_message_delete
+        self.on_message_edit = moderation_logs.on_message_edit
         self.add_listener(bump_reminder.on_message)
 
     async def setup_hook(self):
@@ -58,6 +63,10 @@ class BotClient(Client):
             # Setup auto responders
             await auto_responders.setup_auto_responders(self)
             logger.info("Auto responders setup complete")
+
+            # Setup ticket system
+            await tickets.setup_tickets(self)
+            logger.info("Ticket system setup complete")
 
             logger.info("All tasks setup complete!")
             
