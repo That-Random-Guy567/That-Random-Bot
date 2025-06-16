@@ -1,63 +1,68 @@
-# modules/bump_reminder.py
 import asyncio
 import discord
-from discord.ext import tasks
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from core.bot import Client
-
+from discord.ext import tasks, commands
 from core.logging import logger
-from constants import BUMP_CONFIG
+from constants import BUMP_CONFIG, BUMP_TIME_INTERVAL
 
-# Globals
-bump_config = BUMP_CONFIG.copy()  # Create a copy to avoid unintended modifications
+class BumpReminder(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.bump_config = BUMP_CONFIG.copy()
+        self.bump_reminder_loop.start()
 
-# Loop to send bump reminders at regular intervals
-@tasks.loop(seconds=60)  # Check every 60 seconds
-async def bump_reminder_loop(bot: "Client", channel: discord.TextChannel):
-    if not bump_config["enabled"]:
-        return  # Exit if not enabled
+    def cog_unload(self):
+        self.bump_reminder_loop.cancel()
 
-    now = asyncio.get_running_loop().time()
+    @tasks.loop(seconds=BUMP_TIME_INTERVAL)
+    async def bump_reminder_loop(self):
+        if not self.bump_config.get("enabled", False):
+            return
 
-    # Check if it's time to send a ping reminder
-    if now - bump_config["last_ping_time"] > bump_config["ping_interval"]:
-        bump_ping = bump_config["ping_role"]
-        await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
-        bump_config["last_ping_time"] = now
-
-    # Check if it's time to send a normal reminder
-    elif now - bump_config["last_normal_message_time"] > bump_config["normal_message_interval"]:
-        await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
-        bump_config["last_normal_message_time"] = now
-
-async def setup_bump_reminder(bot: "Client"):
-    channel = bot.get_channel(bump_config["channel_id"])
-    if channel is None:
-        logger.error("[Bump reminder channel not found.]")
-        return
-    bump_reminder_loop.start(bot, channel)
-
-async def on_message(bot: "Client", message: discord.Message):
-    if (
-            message.author.bot and
-            message.embeds and
-            message.embeds[0].description and
-            "Bump done" in message.embeds[0].description
-    ):
-        logger.info("[✅ Detected Disboard bump. Resetting timers and enabling reminders.]")
         now = asyncio.get_running_loop().time()
-        bump_config["last_ping_time"] = now
-        bump_config["last_normal_message_time"] = now
-        bump_config["enabled"] = True  # Start the timers after bump
-        bump_config["bump_count"] += 1
-        logger.info(f"[📈 Bump count: {bump_config['bump_count']}]")
 
-        if bump_config["bump_count"] >= 12:
-            bump_ping = bump_config["ping_role"]
-            await message.channel.send(f"🎯 **Time to bump {bump_ping}!**")
-            bump_config["bump_count"] = 0  # Reset the count
+        if now - self.bump_config.get("last_ping_time", 0) > self.bump_config.get("ping_interval", 0):
+            bump_ping = self.bump_config.get("ping_role", "@everyone")
+            channel = self.bot.get_channel(self.bump_config.get("channel_id"))
+            if channel:
+                await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
+            self.bump_config["last_ping_time"] = now
 
-        print("###########################")
+        elif now - self.bump_config.get("last_normal_message_time", 0) > self.bump_config.get("normal_message_interval", 0):
+            channel = self.bot.get_channel(self.bump_config.get("channel_id"))
+            if channel:
+                await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
+            self.bump_config["last_normal_message_time"] = now
+
+    @bump_reminder_loop.before_loop
+    async def before_bump_reminder(self):
+        await self.bot.wait_until_ready()
+        logger.info("[BumpReminder Cog] Background loop starting.")
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if (
+            message.author.bot and
+            message.embeds
+        ):
+            embed = message.embeds[0]
+            title = embed.title or ""
+            desc = embed.description or ""
+            if title.lower() == "disboard: the public server list" and "bump done" in desc.lower():
+                logger.info("[✅ Detected Disboard bump. Resetting timers and enabling reminders.]")
+                now = asyncio.get_running_loop().time()
+                self.bump_config["last_ping_time"] = now
+                self.bump_config["last_normal_message_time"] = now
+                self.bump_config["enabled"] = True
+                self.bump_config["bump_count"] = self.bump_config.get("bump_count", 0) + 1
+                logger.info(f"[📈 Bump count: {self.bump_config['bump_count']}]")
+
+                if self.bump_config["bump_count"] >= 12:
+                    bump_ping = self.bump_config.get("ping_role", "@everyone")
+                    await message.channel.send(f"🎯 **Time to bump {bump_ping}!**")
+                    self.bump_config["bump_count"] = 0
+
+                print("###########################")
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(BumpReminder(bot))
+    logger.info("[BumpReminder Cog] Loaded and ready.")

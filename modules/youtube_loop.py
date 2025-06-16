@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 
 from core.logging import logger
 from constants import YOUTUBE_CONFIG
-from constants import TIME_INTERVAL
+from constants import YOUTUBE_TIME_INTERVAL
 
-logger.info(f"Using time interval: {TIME_INTERVAL} minute(s)")
-@tasks.loop(minutes=TIME_INTERVAL)
+logger.info(f"Using time interval: {YOUTUBE_TIME_INTERVAL} minute(s)")
+@tasks.loop(minutes=YOUTUBE_TIME_INTERVAL)
 async def youtube_upload_loop(bot: "Client"):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.print_separator()
@@ -106,7 +106,7 @@ async def setup_youtube_loop(bot: "Client"):
         # Start the loop
         if not youtube_upload_loop.is_running():
             youtube_upload_loop.start(bot)
-            logger.info(f"YouTube loop started with {TIME_INTERVAL} minute interval")
+            logger.info(f"YouTube loop started with {YOUTUBE_TIME_INTERVAL} minute interval")
         else:
             logger.warning("YouTube loop was already running")
             

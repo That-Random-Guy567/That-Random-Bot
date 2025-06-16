@@ -18,6 +18,8 @@ from modules.moderation.message_events import (
 from modules.moderation.role_events import member_role_add, member_role_remove
 from modules.moderation.role_events.member_role_remove import MemberRoleRemove
 
+from modules.bump_reminder import BumpReminder
+
 from modules import (
     bump_reminder,
     youtube_loop,
@@ -39,8 +41,6 @@ class BotClient(Client):
         self.on_message_edit = edit_message.on_message_edit
         self.on_member_update = member_role_add.on_member_update
 
-        self.add_listener(bump_reminder.on_message)
-
     async def setup_hook(self):
         """Initialize the bot when it first connects to Discord."""
         self.loop.create_task(self.setup_tasks())
@@ -54,10 +54,6 @@ class BotClient(Client):
         try:
             await self.wait_until_ready()
             logger.info("Bot is ready, setting up tasks...")
-            
-            # Setup bump reminder
-            await bump_reminder.setup_bump_reminder(self)
-            logger.info("Bump reminder setup complete")
             
             # Setup YouTube loop
             await youtube_loop.setup_youtube_loop(self)
@@ -74,8 +70,13 @@ class BotClient(Client):
             await auto_responders.setup_auto_responders(self)
             logger.info("Auto responders setup complete")
 
+            # Setup member role add listener
             await self.add_cog(MemberRoleRemove(self))
             logger.info("Member role removal logging setup complete")
+
+            # Setup Bump Reminder COG
+            await self.add_cog(BumpReminder(self))
+            logger.info("Bump Reminder COG setup complete")
 
             # Setup ticket system
             await tickets.setup_tickets(self)
