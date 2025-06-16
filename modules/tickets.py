@@ -62,7 +62,7 @@ class TicketView(View):
 
         # Check cooldown (5 minutes)
         cooldown_seconds = 5 * 60
-        now_ts = datetime.utcnow().timestamp()
+        now_ts = datetime.now(timezone.utc).timestamp()
         if user_id_str in open_tickets:
             last_closed_ts = open_tickets[user_id_str].get("closed_timestamp", 0)
             if now_ts - last_closed_ts < cooldown_seconds:

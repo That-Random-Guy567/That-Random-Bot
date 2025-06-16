@@ -72,7 +72,15 @@ bot = Client(command_prefix=BOT_PREFIX, intents=intents)
 # Import modules at the end to avoid circular imports
 import modules.bump_reminder
 import modules.youtube_loop
-import modules.moderation_logs
+
+import modules.moderation.message_events.edit_message
+import modules.moderation.message_events.delete_message
+
+import modules.moderation.role_events.member_role_add
+import modules.moderation.role_events.member_role_remove
+
+import modules.tickets
+
 import modules.commands
 import modules.auto_responders
 import modules.counting

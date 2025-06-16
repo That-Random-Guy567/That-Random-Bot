@@ -9,9 +9,17 @@ from core.bot import Client
 from core.logging import logger
 from config import TOKEN
 
+from constants import BOT_PREFIX
+
+from modules.moderation.message_events import (
+    delete_message, 
+    edit_message, 
+)
+from modules.moderation.role_events import member_role_add, member_role_remove
+from modules.moderation.role_events.member_role_remove import MemberRoleRemove
+
 from modules import (
     bump_reminder,
-    moderation_logs,
     youtube_loop,
     auto_responders,
     counting,
@@ -23,11 +31,14 @@ from modules.commands.slash_commands import setup_slash_commands
 class BotClient(Client):
     def __init__(self):
         intents = discord.Intents.all()
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix=BOT_PREFIX, intents=intents)
         
         # Register event listeners
-        self.on_message_delete = moderation_logs.on_message_delete
-        self.on_message_edit = moderation_logs.on_message_edit
+        self.add_listener(delete_message.on_message_delete)
+
+        self.on_message_edit = edit_message.on_message_edit
+        self.on_member_update = member_role_add.on_member_update
+
         self.add_listener(bump_reminder.on_message)
 
     async def setup_hook(self):
@@ -62,6 +73,9 @@ class BotClient(Client):
             # Setup auto responders
             await auto_responders.setup_auto_responders(self)
             logger.info("Auto responders setup complete")
+
+            await self.add_cog(MemberRoleRemove(self))
+            logger.info("Member role removal logging setup complete")
 
             # Setup ticket system
             await tickets.setup_tickets(self)
