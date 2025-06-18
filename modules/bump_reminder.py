@@ -20,17 +20,16 @@ class BumpReminder(commands.Cog):
 
         now = asyncio.get_running_loop().time()
 
-        if now - self.bump_config.get("last_ping_time", 0) > self.bump_config.get("ping_interval", 0):
-            bump_ping = self.bump_config.get("ping_role", "@everyone")
+        if now - self.bump_config.get("last_normal_message_time", 0) > self.bump_config.get("normal_message_interval", 0):
+            self.bump_config["reminder_count"] = self.bump_config.get("reminder_count", 0) + 1
             channel = self.bot.get_channel(self.bump_config.get("channel_id"))
             if channel:
-                await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
-            self.bump_config["last_ping_time"] = now
-
-        elif now - self.bump_config.get("last_normal_message_time", 0) > self.bump_config.get("normal_message_interval", 0):
-            channel = self.bot.get_channel(self.bump_config.get("channel_id"))
-            if channel:
-                await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
+                if self.bump_config["reminder_count"] >= self.bump_config.get("ping_every_n_reminders", 3):
+                    bump_ping = self.bump_config.get("ping_role", "@everyone")
+                    await channel.send(f"🔔 **Time to bump the server {bump_ping}!** Don’t forget to use `/bump`.")
+                    self.bump_config["reminder_count"] = 0
+                else:
+                    await channel.send("⏰ Just a friendly reminder: it's time to bump the server again!")
             self.bump_config["last_normal_message_time"] = now
 
     @bump_reminder_loop.before_loop
@@ -50,16 +49,8 @@ class BumpReminder(commands.Cog):
             if title.lower() == "disboard: the public server list" and "bump done" in desc.lower():
                 logger.info("[✅ Detected Disboard bump. Resetting timers and enabling reminders.]")
                 now = asyncio.get_running_loop().time()
-                self.bump_config["last_ping_time"] = now
                 self.bump_config["last_normal_message_time"] = now
                 self.bump_config["enabled"] = True
-                self.bump_config["bump_count"] = self.bump_config.get("bump_count", 0) + 1
-                logger.info(f"[📈 Bump count: {self.bump_config['bump_count']}]")
-
-                if self.bump_config["bump_count"] >= 12:
-                    bump_ping = self.bump_config.get("ping_role", "@everyone")
-                    await message.channel.send(f"🎯 **Time to bump {bump_ping}!**")
-                    self.bump_config["bump_count"] = 0
 
                 print("###########################")
 

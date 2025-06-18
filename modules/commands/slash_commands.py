@@ -6,10 +6,10 @@ from constants import GUILD_SERVER_INT, GUILD_ID
 # Import commands from their respective modules
 from .bot_info import ping, uptime, send_command
 from .count import count
-from .bump import next_bump
+from .bump import next_bump, send_bump_cmd
 from .social_media import subscribe
 from .ticket_creation import ticket
-from .help import help_info
+from .help import help
 
 
 async def setup_slash_commands(bot: Client):
@@ -20,11 +20,12 @@ async def setup_slash_commands(bot: Client):
             subscribe,
             send_command,
             next_bump,
+            send_bump_cmd,
             uptime,
             ping,
             count,
             ticket,
-            help_info,
+            help,
         ]
         
         for cmd in commands:

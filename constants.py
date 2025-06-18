@@ -43,11 +43,10 @@ YOUTUBE_CONFIG = {
 # Bump Reminder Settings
 BUMP_CONFIG = {
     "enabled": False,
-    "last_ping_time": 0,
     "last_normal_message_time": 0,
-    "bump_count": 0,
-    "ping_interval": 6 * 60 * 60,  # 6 hours
     "normal_message_interval": 2 * 60 * 60,  # 2 hours
     "channel_id": 1345373029626023999,
     "ping_role": "<@&1355998357033718001>",
+    "ping_every_n_reminders": 5,
+    "reminder_count": 0,
 }
