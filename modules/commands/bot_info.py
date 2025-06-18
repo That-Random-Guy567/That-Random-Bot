@@ -1,4 +1,3 @@
-
 import discord
 from discord import app_commands
 from datetime import datetime, timezone, timedelta
@@ -8,35 +7,38 @@ from core.logging import logger
 #---------------- Ping Command ----------------
 @app_commands.command(name="ping", description="Check the bot's latency")
 async def ping(interaction: discord.Interaction):
-    # Get websocket heartbeat latency
-    websocket_latency = round(interaction.client.latency * 1000)
-    
-    # Create initial embed
-    latency_embed = discord.Embed(
+    start_time = time.perf_counter()
+
+    # Respond quickly
+    await interaction.response.send_message("🏓 Measuring latency...", ephemeral=True)
+    end_time = time.perf_counter()
+    rest_latency = round((end_time - start_time) * 1000)
+
+    # WebSocket latency
+    ws_latency = round(interaction.client.latency * 1000)
+
+    # Typing latency (simulate a lightweight delay)
+    typing_start = time.perf_counter()
+    try:
+        async with interaction.channel.typing():
+            pass
+    except Exception:
+        pass  # Some channels might not allow typing
+    typing_latency = round((time.perf_counter() - typing_start) * 1000)
+
+    # Build latency embed
+    embed = discord.Embed(
         title="🏓 Pong!",
+        description="Latency stats for the bot.",
         color=discord.Color.blue()
     )
-    
-    # Measure REST API latency
-    before = time.perf_counter()
-    await interaction.response.defer()  # Much lighter than sending a message
-    after = time.perf_counter()
-    api_latency = round((after - before) * 1000)
-    
-    # Add fields
-    latency_embed.add_field(
-        name="WebSocket Heartbeat", 
-        value=f"**{websocket_latency}ms**", 
-        inline=True
-    )
-    latency_embed.add_field(
-        name="REST API Latency", 
-        value=f"**{api_latency}ms**", 
-        inline=True
-    )
-    
-    await interaction.followup.send(embed=latency_embed)
-    logger.info(f"Ping command used - WS: {websocket_latency}ms, API: {api_latency}ms")
+
+    embed.add_field(name="🟢 WebSocket", value=f"**{ws_latency}ms**", inline=True)
+    embed.add_field(name="🔵 REST API", value=f"**{rest_latency}ms**", inline=True)
+    embed.add_field(name="🟣 Typing Indicator", value=f"**{typing_latency}ms**", inline=True)
+
+    embed.set_footer(text="🟢 Ping from servers| 🔵 Message Delay | 🟣 Typing Indicator Ping")
+    await interaction.followup.send(embed=embed)
 
 #---------------- Uptime Command ----------------
 @app_commands.command(name="uptime", description="Shows how long the bot has been online")
