@@ -1,5 +1,13 @@
 # Guild and Channel IDs
 import discord
+from bot_choice import get_bot_config
+
+WHICH_BOT = True  # True for That Random Bot, False for Ze Random Test Bot
+
+# Get both emojis and token name from the config
+bot_config = get_bot_config()
+EMOJIS = bot_config['emojis']
+TOKEN_NAME = bot_config['token_name']
 
 GUILD_SERVER_INT = 1311684718554648637
 GUILD_ID = discord.Object(id = GUILD_SERVER_INT) # server id
@@ -12,7 +20,8 @@ YOUTUBE_TIME_INTERVAL = 5 # minutes
 
 BUMP_TIME_INTERVAL = 10 #seconds
 
-COUNTING_CHANNEL_ID = 1381569756175269888
+COUNTING_CHANNEL_ID = 1385173659991146536
+
 
 
 TICKET_DATA = {
@@ -23,14 +32,7 @@ TICKET_DATA = {
 }
 
 BOT_PREFIX = "!"
-
-
-EMOJIS = {
-    "PEPE_YES": "<:pepe_yes:1381571891265011772>",
-    "PEPE_NO": "<:pepe_no:1381571865063194727>",
-    "BOT_PFP": "<:bot_pfp:1381571919958249562>",
-}
-
+    
 YOUTUBE_CONFIG = {
     "FEED_URL" : "https://www.youtube.com/feeds/videos.xml?channel_id=UCz_FSOLUPPYSghNQv1pVQTA",
     "UPLOAD_CHANNEL_ID" : 1356190880490324128,
