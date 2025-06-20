@@ -27,10 +27,13 @@ LOG_CHANNEL_IDS = LogChannelIDs()
 class BumpConfig:
     enabled: bool = False
     last_normal_message_time: float = 0
-    normal_message_interval: int = 2 * 60 * 60  # 2 hours
+
+    normal_message_interval: int = 6 * 60 * 60  # 6 hours
+    ping_every_n_reminders: int = 6
+
     channel_id: int = 1345373029626023999
     ping_role: str = "<@&1355998357033718001>"
-    ping_every_n_reminders: int = 5
+    
     reminder_count: int = 0
     refresh_time: int = 10  # seconds
 BUMP_CONFIG = BumpConfig()

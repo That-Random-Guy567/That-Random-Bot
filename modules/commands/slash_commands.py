@@ -4,7 +4,7 @@ from core.logging import logger
 from constants import GUILD_SERVER_INT, GUILD_ID
 
 # Import commands from their respective modules
-from .bot_info import ping, uptime, send_command
+from .bot_info import ping, uptime, send_command, resources
 from .count import count
 from .bump import next_bump, send_bump_cmd
 from .social_media import subscribe
@@ -21,6 +21,7 @@ async def setup_slash_commands(bot: Client):
             send_command,
             next_bump,
             send_bump_cmd,
+            resources,
             uptime,
             ping,
             count,
