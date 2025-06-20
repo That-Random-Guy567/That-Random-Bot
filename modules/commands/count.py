@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from core.logging import logger
-from modules.counting import count_data
+from modules.functions.counting import count_data
 from constants import COUNTING_CHANNEL_ID
 
 #---------------- Counting Channel Command ----------------

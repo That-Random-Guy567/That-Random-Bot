@@ -2,11 +2,11 @@ import discord
 from discord import app_commands
 from core.logging import logger
 from constants import TICKET_DATA
-from modules.tickets import TicketView  # adjust import if needed
+from modules.functions.tickets import TicketView  # adjust import if needed
 
 @app_commands.command(name="ticket", description="Set up the ticket creation menu.")
 async def ticket(interaction: discord.Interaction):
-    ticket_channel_id = TICKET_DATA.get("TICKET_CHANNEL_ID")
+    ticket_channel_id = TICKET_DATA.TICKET_CHANNEL_ID
     if ticket_channel_id is None:
         await interaction.response.send_message("Ticket channel not configured.", ephemeral=True)
         logger.error("TICKET_CHANNEL_ID not found in constants.")

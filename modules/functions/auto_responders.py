@@ -17,7 +17,7 @@ async def setup_auto_responders(bot: commands.Bot) -> None:
         
         # Auto-response commands
         if message.content.lower().startswith("hello"):
-            if random.random() < 0.1:  # 10% chance to respond
+            if random.random() < 0.05:  # 5% chance to respond
                 agencies = [
                     "-# This user is under the review of the FBI • [Review](<https://www.fbi.gov/investigate>)",
                     "-# This user is under the review of the CIA • [Review](<https://www.cia.gov/>)",

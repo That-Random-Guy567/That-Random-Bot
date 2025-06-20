@@ -1,14 +1,14 @@
 import discord
 
 from core.logging import logger
-from constants import EDIT_LOG_CHANNEL_ID
+from constants import LOG_CHANNEL_IDS
 
 
 async def on_message_edit(before: discord.Message, after: discord.Message):
-    edit_log_channel = after.guild.get_channel(EDIT_LOG_CHANNEL_ID)
+    edit_log_channel = after.guild.get_channel(LOG_CHANNEL_IDS.EDIT)
 
     if not edit_log_channel:
-        logger.error(f"Could not find log channel with ID {EDIT_LOG_CHANNEL_ID}")
+        logger.error(f"Could not find log channel with ID {LOG_CHANNEL_IDS.EDIT}")
         return
 
     if before.author.bot:

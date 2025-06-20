@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from constants import ROLE_LOG_CHANNEL_ID
+from constants import LOG_CHANNEL_IDS
 import logging
 import asyncio
 from datetime import datetime, timezone
@@ -18,9 +18,9 @@ class MemberRoleRemove(commands.Cog):
             return
 
         guild = after.guild
-        channel = guild.get_channel(ROLE_LOG_CHANNEL_ID)
+        channel = guild.get_channel(LOG_CHANNEL_IDS.ROLE_CHANGE)
         if channel is None:
-            logger.error(f"Role log channel with ID {ROLE_LOG_CHANNEL_ID} not found in guild {guild.name} ({guild.id})")
+            logger.error(f"Role log channel with ID {LOG_CHANNEL_IDS.ROLE_CHANGE} not found in guild {guild.name} ({guild.id})")
             return
 
         # Attempt to get the user who removed the role(s) from audit logs

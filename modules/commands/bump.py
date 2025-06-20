@@ -15,23 +15,33 @@ async def next_bump(interaction: discord.Interaction) -> None:
 
         current_time = asyncio.get_running_loop().time()
 
-        last_normal_time = bump_cog.bump_config.get("last_normal_message_time", 0)
-        normal_interval = bump_cog.bump_config.get("normal_message_interval", 0)
+        last_normal_time = bump_cog.bump_config.last_normal_message_time
+        normal_interval = bump_cog.bump_config.normal_message_interval
         normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
         normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
+
+        # Next bump logic: allow negative, and show (Ready!) if negative
+        bump_interval = bump_cog.bump_config.normal_message_interval
+        last_bump_time = bump_cog.bump_config.last_normal_message_time
+        bump_remaining = bump_interval - (current_time - last_bump_time)
+        bump_time_formatted = str(timedelta(seconds=int(bump_remaining)))
+        if bump_remaining < 0:
+            bump_time_formatted += " (Ready!)"
 
         next_bump_embed = discord.Embed(
             title="Next Bump Reminders",
             color=discord.Color.orange()
         )
-        next_bump_embed.add_field(name="💬 Normal Bump Reminder", value=f"In **{normal_time_formatted}**", inline=False)
-
-        # Add time remaining until next /bump is available (assumed 2 hours after last normal reminder)
-        bump_interval = bump_cog.bump_config.get("normal_message_interval", 7200)
-        last_bump_time = bump_cog.bump_config.get("last_normal_message_time", 0)
-        bump_remaining = max(0, bump_interval - (current_time - last_bump_time))
-        bump_time_formatted = str(timedelta(seconds=int(bump_remaining)))
-        next_bump_embed.add_field(name="⬆️ Next Bump", value=f"In **{bump_time_formatted}**", inline=False)
+        next_bump_embed.add_field(
+            name="💬 Normal Bump Reminder",
+            value=f"In **{normal_time_formatted}**",
+            inline=False
+        )
+        next_bump_embed.add_field(
+            name="⬆️ Next Bump",
+            value=f"In **{bump_time_formatted}**",
+            inline=False
+        )
 
         await interaction.response.send_message(embed=next_bump_embed)
     except Exception as e:

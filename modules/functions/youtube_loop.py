@@ -5,7 +5,6 @@ from discord.ext import tasks
 import time
 from datetime import datetime
 
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,17 +12,17 @@ if TYPE_CHECKING:
 
 from core.logging import logger
 from constants import YOUTUBE_CONFIG
-from constants import YOUTUBE_TIME_INTERVAL
 
-logger.info(f"Using time interval: {YOUTUBE_TIME_INTERVAL} minute(s)")
-@tasks.loop(minutes=YOUTUBE_TIME_INTERVAL)
+logger.info(f"Using time interval: {YOUTUBE_CONFIG.TIME_INTERVAL} minute(s)")
+
+@tasks.loop(minutes=YOUTUBE_CONFIG.TIME_INTERVAL)
 async def youtube_upload_loop(bot: "Client"):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.print_separator()
     logger.info(f"YouTube loop iteration starting at {current_time}")
     try:
         # Add a nocache parameter to bypass caching
-        feed_url_with_cache_bypass = f"{YOUTUBE_CONFIG['FEED_URL']}&nocache={int(time.time())}"
+        feed_url_with_cache_bypass = f"{YOUTUBE_CONFIG.FEED_URL}&nocache={int(time.time())}"
         logger.info("Attempting to fetch YouTube feed...")
         # Parse the YouTube feed
         feed = feedparser.parse(feed_url_with_cache_bypass)
@@ -47,14 +46,14 @@ async def youtube_upload_loop(bot: "Client"):
                 bot.first_run = False
             elif video_id not in bot.posted_video_ids:
                 # Send a notification for new videos
-                channel = bot.get_channel(YOUTUBE_CONFIG["UPLOAD_CHANNEL_ID"])
-                forum_channel = bot.get_channel(YOUTUBE_CONFIG["FORUM_CHANNEL_ID"])
+                channel = bot.get_channel(YOUTUBE_CONFIG.UPLOAD_CHANNEL_ID)
+                forum_channel = bot.get_channel(YOUTUBE_CONFIG.FORUM_CHANNEL_ID)
                 video_url = f"https://youtu.be/{video_id}"
 
                 if channel:
                     # Send the announcement in the main channel
                     await channel.send(
-                        f"{YOUTUBE_CONFIG['UPLOAD_PING_ROLE']} New video just dropped! 🎬\n{video_url}")
+                        f"{YOUTUBE_CONFIG.UPLOAD_PING_ROLE} New video just dropped! 🎬\n{video_url}")
                     logger.info(f"New video uploaded: {video_url}")
 
                 # Create a forum post for the video
@@ -78,11 +77,10 @@ async def youtube_upload_loop(bot: "Client"):
                     )
                     logger.info(f"Forum post created for video: {latest_video.title} with tag: {tag_to_apply.name if tag_to_apply else 'None'}")
                 else:
-                    logger.error(f"Could not find forum channel ID {YOUTUBE_CONFIG['FORUM_CHANNEL_ID']} or it is not a ForumChannel.")
+                    logger.error(f"Could not find forum channel ID {YOUTUBE_CONFIG.FORUM_CHANNEL_ID} or it is not a ForumChannel.")
                 bot.posted_video_ids.add(video_id)
             else:
                 logger.info(f"Video already posted: {video_id}")
-                #logger.print_separator()
         else:
             logger.info("No entries found in the feed.")
     except Exception as e:
@@ -106,7 +104,7 @@ async def setup_youtube_loop(bot: "Client"):
         # Start the loop
         if not youtube_upload_loop.is_running():
             youtube_upload_loop.start(bot)
-            logger.info(f"YouTube loop started with {YOUTUBE_TIME_INTERVAL} minute interval")
+            logger.info(f"YouTube loop started with {YOUTUBE_CONFIG.TIME_INTERVAL} minute interval")
         else:
             logger.warning("YouTube loop was already running")
             

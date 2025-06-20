@@ -74,13 +74,13 @@ class TicketView(View):
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_messages=True),
-            guild.get_role(TICKET_DATA["SUPPORT_ROLE_ID"]): discord.PermissionOverwrite(view_channel=True, send_messages=True, read_messages=True)
+            guild.get_role(TICKET_DATA.SUPPORT_ROLE_ID): discord.PermissionOverwrite(view_channel=True, send_messages=True, read_messages=True)
         }
 
-        category = guild.get_channel(TICKET_DATA["CATEGORY_ID"])
+        category = guild.get_channel(TICKET_DATA.CATEGORY_ID)
         if category is None:
             await interaction.followup.send("Ticket category not found. Please contact an admin.", ephemeral=True)
-            logger.error(f"Ticket category ID {TICKET_DATA['CATEGORY_ID']} not found.")
+            logger.error(f"Ticket category ID {TICKET_DATA.CATEGORY_ID} not found.")
             return
 
         # Create ticket channel
@@ -145,7 +145,7 @@ class CloseTicketView(View):
     async def close_ticket_callback(self, interaction: discord.Interaction):
         # Check if user is ticket owner or mod
         is_owner = str(interaction.user.id) == self.ticket_owner
-        mod_role = interaction.guild.get_role(TICKET_DATA["SUPPORT_ROLE_ID"])
+        mod_role = interaction.guild.get_role(TICKET_DATA.SUPPORT_ROLE_ID)
         is_mod = mod_role in interaction.user.roles if mod_role else False
 
         if not (is_owner or is_mod):
@@ -155,14 +155,14 @@ class CloseTicketView(View):
         await interaction.response.send_modal(CloseTicketModal(
             self.ticket_channel,
             self.ticket_owner,
-            TICKET_DATA["TRANSCRIPTS_CHANNEL_ID"],
+            TICKET_DATA.TRANSCRIPTS_CHANNEL_ID,
             is_owner,
             self
         ))
 
     async def delete_ticket_callback(self, interaction: discord.Interaction):
         # Only mods can delete ticket
-        mod_role = interaction.guild.get_role(TICKET_DATA["SUPPORT_ROLE_ID"])
+        mod_role = interaction.guild.get_role(TICKET_DATA.SUPPORT_ROLE_ID)
         if not mod_role or mod_role not in interaction.user.roles:
             await interaction.response.send_message("Only moderators can delete the ticket channel.", ephemeral=True)
             return

@@ -56,8 +56,8 @@ class Client(commands.Bot):
         logger.info("Setting up extensions and modules...")
 
         # Import setup functions here to avoid circular imports
-        from modules.bump_reminder import setup_bump_reminder
-        from modules.youtube_loop import setup_youtube_loop
+        from modules.functions.bump_reminder import setup_bump_reminder
+        from modules.functions.youtube_loop import setup_youtube_loop
 
         await setup_bump_reminder(self)
         await setup_youtube_loop(self)
@@ -70,8 +70,8 @@ intents = discord.Intents.all()
 bot = Client(command_prefix=BOT_PREFIX, intents=intents)
 
 # Import modules at the end to avoid circular imports
-import modules.bump_reminder
-import modules.youtube_loop
+import modules.functions.bump_reminder
+import modules.functions.youtube_loop
 
 import modules.moderation.message_events.edit_message
 import modules.moderation.message_events.delete_message
@@ -79,8 +79,8 @@ import modules.moderation.message_events.delete_message
 import modules.moderation.role_events.member_role_add
 import modules.moderation.role_events.member_role_remove
 
-import modules.tickets
+import modules.functions.tickets
 
 import modules.commands
-import modules.auto_responders
-import modules.counting
+import modules.functions.auto_responders
+import modules.functions.counting

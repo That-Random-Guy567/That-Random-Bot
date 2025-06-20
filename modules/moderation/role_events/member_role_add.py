@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from core.logging import logger
-from constants import ROLE_LOG_CHANNEL_ID
+from constants import LOG_CHANNEL_IDS
 from datetime import datetime, timezone
 
 async def on_member_update(before: discord.Member, after: discord.Member):
@@ -13,9 +13,9 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         return
 
     guild = after.guild
-    log_channel = guild.get_channel(ROLE_LOG_CHANNEL_ID)
+    log_channel = guild.get_channel(LOG_CHANNEL_IDS.ROLE_CHANGE)
     if not log_channel:
-        logger.error(f"Could not find role log channel with ID {ROLE_LOG_CHANNEL_ID}")
+        logger.error(f"Could not find role log channel with ID {LOG_CHANNEL_IDS.ROLE_CHANGE}")
         return
 
     # Try to get who changed roles once

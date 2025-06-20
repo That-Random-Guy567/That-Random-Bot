@@ -18,7 +18,7 @@ from modules.moderation.message_events import (
 from modules.moderation.role_events import member_role_add, member_role_remove
 from modules.moderation.role_events.member_role_remove import MemberRoleRemove
 
-from modules.bump_reminder import BumpReminder
+from modules.functions.bump_reminder import BumpReminder
 
 from modules import (
     bump_reminder,

@@ -1,7 +1,7 @@
 import discord
 
 from core.logging import logger
-from constants import DELETE_LOG_CHANNEL_ID
+from constants import LOG_CHANNEL_IDS
 
 def has_image(message: discord.Message) -> bool:
     # Check if any attachment is an image
@@ -18,10 +18,10 @@ async def on_message_delete(message: discord.Message):
     if has_image(message):
         return
 
-    delete_log_channel = message.guild.get_channel(DELETE_LOG_CHANNEL_ID)
+    delete_log_channel = message.guild.get_channel(LOG_CHANNEL_IDS.DELETE)
 
     if not delete_log_channel:
-        logger.error(f"Could not find log channel with ID {DELETE_LOG_CHANNEL_ID}")
+        logger.error(f"Could not find log channel with ID {LOG_CHANNEL_IDS.DELETE}")
         return
 
     if message.author.bot:

@@ -5,11 +5,11 @@ Contains all bot functionality including commands, moderation, and other feature
 """
 
 # Import main modules to make them available when importing from modules
-from . import bump_reminder
-from . import youtube_loop
-from . import auto_responders
-from . import counting
-from . import tickets
+from .functions import bump_reminder
+from .functions import youtube_loop
+from .functions import auto_responders
+from .functions import counting
+from .functions import tickets
 
 __all__ = [
     'bump_reminder',
