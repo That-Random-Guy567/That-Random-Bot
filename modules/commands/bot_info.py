@@ -3,42 +3,34 @@ from discord import app_commands
 from datetime import datetime, timezone, timedelta
 import time
 from core.logging import logger
+import psutil
 
 #---------------- Ping Command ----------------
 @app_commands.command(name="ping", description="Check the bot's latency")
 async def ping(interaction: discord.Interaction):
-    start_time = time.perf_counter()
-
-    # Respond quickly
-    await interaction.response.send_message("🏓 Measuring latency...", ephemeral=True)
-    end_time = time.perf_counter()
-    rest_latency = round((end_time - start_time) * 1000)
+    """Responds with the bot's WebSocket and REST API latency."""
+    # Measure REST API latency
+    rest_start = time.perf_counter()
+    await interaction.response.send_message("🏓 Pong!", ephemeral=True)
+    rest_end = time.perf_counter()
+    rest_latency = round((rest_end - rest_start) * 1000)
 
     # WebSocket latency
     ws_latency = round(interaction.client.latency * 1000)
 
-    # Typing latency (simulate a lightweight delay)
-    typing_start = time.perf_counter()
-    try:
-        async with interaction.channel.typing():
-            pass
-    except Exception:
-        pass  # Some channels might not allow typing
-    typing_latency = round((time.perf_counter() - typing_start) * 1000)
-
-    # Build latency embed
-    embed = discord.Embed(
+    ping_embed = discord.Embed(
         title="🏓 Pong!",
-        description="Latency stats for the bot.",
-        color=discord.Color.blue()
+        color=discord.Color.blurple(),
+        description=(
+            "Here are the current latency stats:\n\n"
+            "**WebSocket latency** measures the real-time connection delay between the bot and Discord (event delivery).\n"
+            "**REST API latency** measures how fast the bot can send a request (like sending a message) to Discord's servers."
+        )
     )
+    ping_embed.add_field(name="WebSocket Latency", value=f"**{ws_latency}ms**", inline=True)
+    ping_embed.add_field(name="REST API Latency", value=f"**{rest_latency}ms**", inline=True)
 
-    embed.add_field(name="🟢 WebSocket", value=f"**{ws_latency}ms**", inline=True)
-    embed.add_field(name="🔵 REST API", value=f"**{rest_latency}ms**", inline=True)
-    embed.add_field(name="🟣 Typing Indicator", value=f"**{typing_latency}ms**", inline=True)
-
-    embed.set_footer(text="🟢 Ping from servers| 🔵 Message Delay | 🟣 Typing Indicator Ping")
-    await interaction.followup.send(embed=embed)
+    await interaction.followup.send(embed=ping_embed)
 
 #---------------- Uptime Command ----------------
 @app_commands.command(name="uptime", description="Shows how long the bot has been online")
@@ -53,6 +45,28 @@ async def uptime(interaction: discord.Interaction):
         color=discord.Color.green()
     )
     await interaction.response.send_message(embed=uptime_embed)
+
+
+#---------------- Resource Usage Command ----------------
+@app_commands.command(name="resources", description="Shows the bot's current CPU and RAM usage")
+async def resources(interaction: discord.Interaction):
+    """
+    Responds with the bot's current CPU and RAM usage.
+    """
+    process = psutil.Process()
+    cpu_percent = process.cpu_percent(interval=0.5)
+    mem_info = process.memory_info()
+    ram_mb = mem_info.rss / 1024 / 1024  # Convert bytes to MB
+
+    resource_embed = discord.Embed(
+        title="🖥️ Bot Resource Usage",
+        color=discord.Color.gold(),
+        description=(
+            f"**CPU Usage:** {cpu_percent:.2f}%\n"
+            f"**RAM Usage:** {ram_mb:.2f} MB"
+        )
+    )
+    await interaction.response.send_message(embed=resource_embed)
 
 #---------------- Send Command ----------------
 @app_commands.command(name="send", description="Sends a message to a specific channel")

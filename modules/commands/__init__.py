@@ -2,7 +2,7 @@ from .slash_commands import setup_slash_commands
 from .bump import next_bump, send_bump_cmd
 from .count import count
 from .social_media import subscribe
-from .bot_info import ping, uptime, send_command
+from .bot_info import ping, uptime, send_command, resources
 from .ticket_creation import ticket
 from .help import help
 
@@ -14,6 +14,7 @@ __all__ = [
     'count',
     'subscribe',
     'ping',
+    'resources',
     'uptime',
     'send_command',
     'help',
