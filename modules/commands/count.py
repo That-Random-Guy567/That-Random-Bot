@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from core.logging import logger
-from modules.functions.counting import count_data
+from modules.functions.counting import load_count_data
 from constants import COUNTING_CHANNEL_ID
 
 #---------------- Counting Channel Command ----------------
@@ -11,7 +11,8 @@ async def count(interaction: discord.Interaction):
     try:
         # Get the count data for the counting channel
         chan_id = str(COUNTING_CHANNEL_ID)
-        data = count_data.get(chan_id, {"last_count": 0, "last_user": None})
+        # Always load the latest data from MongoDB
+        data = load_count_data().get(chan_id, {"last_count": 0, "last_user": None})
         current_count = data["last_count"]
         last_counter = data["last_user"]
 

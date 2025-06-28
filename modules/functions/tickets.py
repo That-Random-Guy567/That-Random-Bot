@@ -7,30 +7,42 @@ import os
 from datetime import datetime, timezone, timedelta
 
 from core.logging import logger
+from core.mongo import db
 from constants import TICKET_DATA
 
-# Path to open tickets JSON file
-TICKET_FILE_PATH = os.path.join("..", "data", "open_tickets.json")
-os.makedirs(os.path.dirname(TICKET_FILE_PATH), exist_ok=True)
+TICKETS_COLLECTION = db["open_tickets"]
 
 # Load open tickets data
 def load_open_tickets():
-    try:
-        with open(TICKET_FILE_PATH, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError:
-        logger.error(f"Error decoding {TICKET_FILE_PATH}. Returning empty dict.")
-        return {}
+    tickets = {}
+    for doc in TICKETS_COLLECTION.find():
+        tickets[str(doc["channel_id"])] = {
+            "owner": doc["owner"],
+            "closed_timestamp": doc.get("closed_timestamp", 0)
+        }
+    # Also load cooldowns by user id if you store them
+    for doc in TICKETS_COLLECTION.find({"type": "cooldown"}):
+        tickets[doc["user_id"]] = {"closed_timestamp": doc["closed_timestamp"]}
+    return tickets
 
 # Save open tickets data
 def save_open_tickets(data):
-    try:
-        with open(TICKET_FILE_PATH, "w") as f:
-            json.dump(data, f, indent=4)
-    except IOError as e:
-        logger.error(f"Error saving {TICKET_FILE_PATH}: {e}")
+    TICKETS_COLLECTION.delete_many({})  # Clear all
+    for key, value in data.items():
+        if key.isdigit():
+            # Ticket channel
+            TICKETS_COLLECTION.insert_one({
+                "channel_id": int(key),
+                "owner": value["owner"],
+                "closed_timestamp": value.get("closed_timestamp", 0)
+            })
+        else:
+            # Cooldown by user id
+            TICKETS_COLLECTION.insert_one({
+                "type": "cooldown",
+                "user_id": key,
+                "closed_timestamp": value["closed_timestamp"]
+            })
 
 class TicketView(View):
     def __init__(self):

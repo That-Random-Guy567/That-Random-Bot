@@ -12,8 +12,23 @@ if TYPE_CHECKING:
 
 from core.logging import logger
 from constants import YOUTUBE_CONFIG
+from core.mongo import db
 
 logger.info(f"Using time interval: {YOUTUBE_CONFIG.TIME_INTERVAL} minute(s)")
+
+YOUTUBE_POSTED_COLLECTION = db["youtube_posted_videos"]
+
+def load_posted_video_ids():
+    """Load posted video IDs from MongoDB."""
+    return set(doc["video_id"] for doc in YOUTUBE_POSTED_COLLECTION.find())
+
+def save_posted_video_id(video_id):
+    """Save a new posted video ID to MongoDB."""
+    YOUTUBE_POSTED_COLLECTION.update_one(
+        {"video_id": video_id},
+        {"$set": {"video_id": video_id}},
+        upsert=True
+    )
 
 @tasks.loop(minutes=YOUTUBE_CONFIG.TIME_INTERVAL)
 async def youtube_upload_loop(bot: "Client"):
@@ -79,6 +94,7 @@ async def youtube_upload_loop(bot: "Client"):
                 else:
                     logger.error(f"Could not find forum channel ID {YOUTUBE_CONFIG.FORUM_CHANNEL_ID} or it is not a ForumChannel.")
                 bot.posted_video_ids.add(video_id)
+                save_posted_video_id(video_id)
             else:
                 logger.info(f"Video already posted: {video_id}")
         else:
@@ -98,8 +114,9 @@ async def setup_youtube_loop(bot: "Client"):
         # Make sure bot attributes are set
         if not hasattr(bot, 'first_run'):
             bot.first_run = True
-        if not hasattr(bot, 'posted_video_ids'):
-            bot.posted_video_ids = set()
+        # Load posted video IDs from MongoDB
+        bot.posted_video_ids = load_posted_video_ids()
+        logger.info(f"Loaded posted video IDs from database: {bot.posted_video_ids}")
             
         # Start the loop
         if not youtube_upload_loop.is_running():

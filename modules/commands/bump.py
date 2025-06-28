@@ -4,25 +4,21 @@ import asyncio
 from datetime import timedelta
 from core.logging import logger
 from constants import BUMP_CONFIG
+from modules.functions.bump_reminder import load_bump_data
 
 @app_commands.command(name="next_bump", description="Check when the next bump reminders will be sent")
 async def next_bump(interaction: discord.Interaction) -> None:
     try:
-        bump_cog = interaction.client.get_cog("BumpReminder")
-        if bump_cog is None:
-            await interaction.response.send_message("BumpReminder Cog is not loaded.", ephemeral=True)
-            return
-
+        bump_data = load_bump_data()
         current_time = asyncio.get_running_loop().time()
 
-        last_normal_time = bump_cog.bump_config.last_normal_message_time
-        normal_interval = bump_cog.bump_config.normal_message_interval
+        last_normal_time = bump_data["last_normal_message_time"]
+        normal_interval = BUMP_CONFIG.normal_message_interval
         normal_remaining = max(0, normal_interval - (current_time - last_normal_time))
         normal_time_formatted = str(timedelta(seconds=int(normal_remaining)))
 
-        # Next bump logic: allow negative, and show (Ready!) if negative
-        bump_interval = bump_cog.bump_config.normal_message_interval
-        last_bump_time = bump_cog.bump_config.last_normal_message_time
+        bump_interval = BUMP_CONFIG.normal_message_interval
+        last_bump_time = bump_data["last_normal_message_time"]
         bump_remaining = bump_interval - (current_time - last_bump_time)
         bump_time_formatted = str(timedelta(seconds=int(bump_remaining)))
         if bump_remaining < 0:
